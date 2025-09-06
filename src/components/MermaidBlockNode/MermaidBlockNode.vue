@@ -33,39 +33,92 @@ const fixedCode = computed(() => {
     .replace(/:::subgraphNode$/gm, '::subgraphNode')
 })
 
-// dynamic container sizing
-const containerHeight = ref<number | null>(null)
-const containerStyle = computed(() => {
-  const style: Record<string, string> = {}
-
-  if (containerHeight.value !== null) {
-    style.height = `${containerHeight.value}px`
-  } else {
-    style.minHeight = '360px'
-  }
-
-  if (props.maxHeight) {
-    style.maxHeight = props.maxHeight
-  }
-
-  return style
-})
-
 // Zoom state
 const zoom = ref(1)
 const translateX = ref(0)
 const translateY = ref(0)
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
+
 // 避免直接渲染画面报错
 const showSource = ref(true)
 const isRendering = ref(false)
 const renderQueue = ref<Promise<void> | null>(null)
-const RENDER_DEBOUNCE_DELAY = 100
-const CONTENT_STABLE_DELAY = 300
+const RENDER_DEBOUNCE_DELAY = 300
+const CONTENT_STABLE_DELAY = 500
 const lastContentLength = ref(0)
 const isContentGenerating = ref(false)
 let contentStableTimer: number | null = null
+
+const containerHeight = ref<string>('360px') // 初始值与 min-h 保持一致
+let resizeObserver: ResizeObserver | null = null
+
+/**
+ * 健壮地计算并更新容器高度，优先使用viewBox，并提供getBBox作为后备
+ * @param newContainerWidth - 可选的容器宽度，由ResizeObserver提供以确保精确
+ */
+function updateContainerHeight(newContainerWidth?: number) {
+  if (!mermaidContainer.value || !mermaidContent.value)
+    return
+
+  const svgElement = mermaidContent.value.querySelector('svg')
+  if (!svgElement)
+    return
+
+  let intrinsicWidth = 0
+  let intrinsicHeight = 0
+
+  // 1. 尝试从SVG属性解析尺寸
+  const viewBox = svgElement.getAttribute('viewBox')
+  const attrWidth = svgElement.getAttribute('width')
+  const attrHeight = svgElement.getAttribute('height')
+
+  // 优先使用 viewBox，因为它通常最能反映内容的真实比例
+  if (viewBox) {
+    const parts = viewBox.split(' ')
+    if (parts.length === 4) {
+      intrinsicWidth = Number.parseFloat(parts[2])
+      intrinsicHeight = Number.parseFloat(parts[3])
+    }
+  }
+
+  // 如果 viewBox 解析失败或不存在，尝试回退到 width/height 属性
+  if (!intrinsicWidth || !intrinsicHeight) {
+    if (attrWidth && attrHeight) {
+      intrinsicWidth = Number.parseFloat(attrWidth)
+      intrinsicHeight = Number.parseFloat(attrHeight)
+    }
+  }
+
+  // 2. 如果从属性解析失败，使用 getBBox() 作为最终后备方案
+  if (Number.isNaN(intrinsicWidth) || Number.isNaN(intrinsicHeight) || intrinsicWidth <= 0 || intrinsicHeight <= 0) {
+    try {
+      // getBBox() 可以精确测量SVG内容的实际渲染边界
+      const bbox = svgElement.getBBox()
+      if (bbox && bbox.width > 0 && bbox.height > 0) {
+        intrinsicWidth = bbox.width
+        intrinsicHeight = bbox.height
+      }
+    }
+    catch (e) {
+      // 在某些罕见情况下（如SVG display:none），getBBox可能会报错
+      console.error('Failed to get SVG BBox:', e)
+      // 在这里可以决定是否要回退到一个默认高度，或者什么都不做
+      return
+    }
+  }
+
+  // 3. 如果成功获取尺寸，则计算并应用高度
+  if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+    const aspectRatio = intrinsicHeight / intrinsicWidth
+    // 如果外部传入了宽度，则使用它，否则自己获取
+    const containerWidth = newContainerWidth ?? mermaidContainer.value.clientWidth
+    let newHeight = containerWidth * aspectRatio
+    if (newHeight > intrinsicHeight)
+      newHeight = intrinsicHeight // 高保真，不超过内容的固有高度
+    containerHeight.value = `${newHeight}px`
+  }
+}
 
 // Modal pseudo-fullscreen state (fixed overlay)
 const isModalOpen = ref(false)
@@ -140,7 +193,8 @@ function checkContentStability() {
 
   const currentLength = fixedCode.value.length
 
-  if (currentLength > lastContentLength.value) {
+  // 只要长度不一致，就认为内容在变化
+  if (currentLength !== lastContentLength.value) {
     isContentGenerating.value = true
     lastContentLength.value = currentLength
 
@@ -150,9 +204,9 @@ function checkContentStability() {
 
     contentStableTimer = setTimeout(() => {
       if (
-        isContentGenerating.value &&
-        showSource.value &&
-        fixedCode.value.trim()
+        isContentGenerating.value
+        && showSource.value
+        && fixedCode.value.trim()
       ) {
         isContentGenerating.value = false
         showSource.value = false
@@ -199,7 +253,8 @@ function startDrag(e: MouseEvent | TouchEvent) {
       x: e.clientX - translateX.value,
       y: e.clientY - translateY.value,
     }
-  } else {
+  }
+  else {
     dragStart.value = {
       x: e.touches[0].clientX - translateX.value,
       y: e.touches[0].clientY - translateY.value,
@@ -208,7 +263,8 @@ function startDrag(e: MouseEvent | TouchEvent) {
 }
 
 function onDrag(e: MouseEvent | TouchEvent) {
-  if (!isDragging.value) return
+  if (!isDragging.value)
+    return
 
   let clientX: number
   let clientY: number
@@ -216,7 +272,8 @@ function onDrag(e: MouseEvent | TouchEvent) {
   if (e instanceof MouseEvent) {
     clientX = e.clientX
     clientY = e.clientY
-  } else {
+  }
+  else {
     clientX = e.touches[0].clientX
     clientY = e.touches[0].clientY
   }
@@ -233,7 +290,8 @@ function stopDrag() {
 function handleWheel(event: WheelEvent) {
   if (event.ctrlKey || event.metaKey) {
     event.preventDefault()
-    if (!mermaidContainer.value) return
+    if (!mermaidContainer.value)
+      return
 
     const rect = mermaidContainer.value.getBoundingClientRect()
     const mouseX = event.clientX - rect.left
@@ -264,7 +322,8 @@ async function copyCode() {
     setTimeout(() => {
       copyText.value = t('common.copy')
     }, 2000)
-  } catch (err) {
+  }
+  catch (err) {
     console.error('Failed to copy:', err)
   }
 }
@@ -288,7 +347,8 @@ async function exportSvg() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to export SVG:', error)
   }
 }
@@ -310,6 +370,10 @@ async function initMermaid() {
   isRendering.value = true
 
   renderQueue.value = (async () => {
+    if (mermaidContent.value) {
+      mermaidContent.value.style.opacity = '0'
+    }
+
     try {
       const id = `mermaid-${Date.now()}-${Math.random()
         .toString(36)
@@ -330,21 +394,10 @@ async function initMermaid() {
       if (mermaidContent.value) {
         mermaidContent.value.innerHTML = svg
         bindFunctions?.(mermaidContent.value)
-        // After inserting SVG, measure its rendered height and adjust container
-        await nextTick()
-        try {
-          const svgEl = mermaidContent.value.querySelector(
-            'svg',
-          ) as SVGSVGElement | null
-          if (svgEl && mermaidContainer.value) {
-            const rect = svgEl.getBoundingClientRect()
-            containerHeight.value = rect.height
-          }
-        } catch {
-          // ignore measurement errors
-        }
+        updateContainerHeight()
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to render mermaid diagram:', error)
       if (mermaidContent.value) {
         const errorDiv = document.createElement('div')
@@ -352,14 +405,20 @@ async function initMermaid() {
         errorDiv.textContent = 'Failed to render diagram: '
 
         const errorSpan = document.createElement('span')
-        errorSpan.textContent =
-          error instanceof Error ? error.message : 'Unknown error'
+        errorSpan.textContent
+          = error instanceof Error ? error.message : 'Unknown error'
         errorDiv.appendChild(errorSpan)
 
         mermaidContent.value.innerHTML = ''
         mermaidContent.value.appendChild(errorDiv)
       }
-    } finally {
+      containerHeight.value = '360px'
+    }
+    finally {
+      await nextTick()
+      if (mermaidContent.value) {
+        mermaidContent.value.style.opacity = '1'
+      }
       isRendering.value = false
       renderQueue.value = null
     }
@@ -393,6 +452,37 @@ watch(
   },
 )
 
+// 监听容器元素的变化，并设置ResizeObserver
+watch(
+  mermaidContainer,
+  (newEl) => {
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+    }
+
+    console.log('mermaidContainer resized, scheduling height update')
+
+    if (newEl) {
+      resizeObserver = new ResizeObserver((entries) => {
+        if (entries && entries.length > 0) {
+          // 直接使用ResizeObserver回调中提供的精确宽度
+          // const newWidth = entries[0].contentRect.width
+          // updateContainerHeight(newWidth)
+
+          // 使用 requestAnimationFrame 确保在下一次重绘前执行更新
+          // 这给了DOM充足的时间来完成SVG的内部布局更新
+          requestAnimationFrame(() => {
+            const newWidth = entries[0].contentRect.width
+            updateContainerHeight(newWidth)
+          })
+        }
+      })
+      resizeObserver.observe(newEl)
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   await nextTick()
   await initMermaid()
@@ -404,7 +494,10 @@ onUnmounted(() => {
   if (contentStableTimer) {
     clearTimeout(contentStableTimer)
   }
-  // cleanup
+  // 在组件卸载时，确保观察者被彻底清理，防止内存泄漏
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
 })
 </script>
 
@@ -413,9 +506,7 @@ onUnmounted(() => {
     <div
       class="flex justify-between items-center p-2 bg-gray-100 dark:bg-zinc-800 text-xs"
     >
-      <span class="text-gray-600 dark:text-gray-400 font-mono font-bold"
-        >Mermaid</span
-      >
+      <span class="text-gray-600 dark:text-gray-400 font-mono font-bold">Mermaid</span>
       <div class="flex items-center space-x-2">
         <button
           class="px-2 py-1 rounded-md transition-colors"
@@ -504,8 +595,8 @@ onUnmounted(() => {
       </div>
       <div
         ref="mermaidContainer"
-        :style="containerStyle"
-        class="overflow-auto bg-gray-50 dark:bg-zinc-900 relative"
+        class="min-h-[360px] bg-gray-50 dark:bg-zinc-900 relative transition-all duration-100 overflow-hidden block"
+        :style="{ height: containerHeight }"
         @wheel="handleWheel"
         @mousedown="startDrag"
         @mousemove="onDrag"
@@ -575,12 +666,15 @@ onUnmounted(() => {
 <style scoped>
 .mermaid {
   font-family: inherit;
+  transition: opacity 0.2s ease-in-out;
 }
 
 .mermaid :deep(svg) {
-  max-width: 100%;
+  width: 100%;
   height: auto;
+  display: block;
 }
+
 .fullscreen {
   width: 100%;
   max-height: 100% !important;
