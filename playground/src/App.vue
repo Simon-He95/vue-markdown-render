@@ -18,7 +18,8 @@ useInterval(10, {
 </script>
 
 <template>
-  <main p20 h-full flex flex-col-reverse overflow-auto>
+  <main p4 h-full flex flex-col-reverse overflow-auto>
+    <div class="place-holder" flex-1></div>
     <MarkdownRender :content="content" :typewriter-effect="true" />
   </main>
 </template>
