@@ -73,9 +73,12 @@ const copyText = ref(false)
 
 const codeLanguage = ref(props.node.language || '')
 const isExpanded = ref(false)
+const isCollapsed = ref(false)
 const editorCreated = ref(false)
 let expandRafId: number | null = null
 let resizeObserver: ResizeObserver | null = null
+const heightBeforeCollapse = ref<number | null>(null)
+let resumeGuardFrames = 0
 
 const Icon = getIconify()
 
@@ -281,10 +284,54 @@ function updateCollapsedHeight() {
     if (!container)
       return
     const max = getMaxHeightValue()
+    if (resumeGuardFrames > 0) {
+      resumeGuardFrames--
+      if (heightBeforeCollapse.value != null) {
+        const h = Math.min(heightBeforeCollapse.value, max)
+        container.style.height = `${Math.ceil(h)}px`
+        container.style.maxHeight = `${Math.ceil(max)}px`
+        container.style.overflow = 'auto'
+        return
+      }
+    }
     const h0 = computeContentHeight()
-    const h = h0 == null ? 'fit-content' : Math.min(h0, max)
+    // 1) 有实时内容高度 -> 采用并记忆原始内容高度（未裁剪前），用于下一次恢复
+    if (h0 != null && h0 > 0) {
+      const h = Math.min(h0, max)
+      container.style.height = `${Math.ceil(h)}px`
+      container.style.maxHeight = `${Math.ceil(max)}px`
+      container.style.overflow = 'auto'
+      return
+    }
 
-    container.style.height = typeof h === 'number' ? `${Math.ceil(h)}px` : h
+    // 2) 使用折叠前的内容高度（不更新记忆值）
+    if (heightBeforeCollapse.value != null) {
+      const h = Math.min(heightBeforeCollapse.value, max)
+      container.style.height = `${Math.ceil(h)}px`
+      container.style.maxHeight = `${Math.ceil(max)}px`
+      container.style.overflow = 'auto'
+      return
+    }
+
+    // 3) 使用当前 DOM 高度（不更新记忆值）
+    const rectH = Math.ceil((container.getBoundingClientRect?.().height) || 0)
+    if (rectH > 0) {
+      const h = Math.min(rectH, max)
+      container.style.height = `${Math.ceil(h)}px`
+      container.style.maxHeight = `${Math.ceil(max)}px`
+      container.style.overflow = 'auto'
+      return
+    }
+
+    // 4) 兜底：若有先前行高/字体，可估一个最小高度；否则保持现状，避免强制跳到 MAX
+    const prev = Number.parseFloat(container.style.height)
+    if (!Number.isNaN(prev) && prev > 0) {
+      container.style.height = `${Math.ceil(Math.min(prev, max))}px`
+    }
+    else {
+      // 实在没有历史高度，才退到 max（极少数首次场景）
+      container.style.height = `${Math.ceil(max)}px`
+    }
     container.style.maxHeight = `${Math.ceil(max)}px`
     container.style.overflow = 'auto'
   }
@@ -433,6 +480,35 @@ function toggleExpand() {
   }
 }
 
+function toggleHeaderCollapse() {
+  isCollapsed.value = !isCollapsed.value
+  if (isCollapsed.value) {
+    if (codeEditor.value) {
+      const rectH = Math.ceil((codeEditor.value.getBoundingClientRect?.().height) || 0)
+      if (rectH > 0)
+        heightBeforeCollapse.value = rectH
+    }
+    stopExpandAutoResize()
+    setAutomaticLayout(false)
+  }
+  else {
+    if (isExpanded.value)
+      setAutomaticLayout(true)
+    if (codeEditor.value && heightBeforeCollapse.value != null) {
+      codeEditor.value.style.height = `${heightBeforeCollapse.value}px`
+    }
+    const ed = isDiff.value ? getDiffEditorView() : getEditorView()
+    try { ed?.layout?.() } catch {}
+    resumeGuardFrames = 2
+    requestAnimationFrame(() => {
+      if (isExpanded.value)
+        updateExpandedHeight()
+      else
+        updateCollapsedHeight()
+    })
+  }
+}
+
 watch(
   () => codeFontSize.value,
   (size) => {
@@ -441,7 +517,7 @@ watch(
       return
     editor.updateOptions({ fontSize: size })
     // In automaticLayout mode, no manual height updates are needed
-    if (isExpanded.value)
+    if (isExpanded.value && !isCollapsed.value)
       updateExpandedHeight()
   },
   { flush: 'post', immediate: false },
@@ -496,9 +572,9 @@ function setAutomaticLayout(expanded: boolean) {
 
 // 监听代码/语言变化：仅在非 Mermaid 且编辑器已创建时更新，避免重复无效更新
 watch(
-  () => [props.node.code, codeLanguage.value, isMermaid.value, isDiff.value] as const,
+  () => [props.node.code, codeLanguage.value, isMermaid.value, isDiff.value, isCollapsed.value] as const,
   () => {
-    if (!editorCreated.value || isMermaid.value) {
+    if (!editorCreated.value || isMermaid.value || isCollapsed.value) {
       return
     }
 
@@ -526,7 +602,7 @@ const stopCreateEditorWatch = watch(
     const editor = isDiff.value ? getDiffEditorView() : getEditorView()
     editor?.updateOptions({ fontSize: codeFontSize.value, automaticLayout: false })
     // Ensure a visible baseline height while collapsed
-    if (!isExpanded.value) {
+    if (!isExpanded.value && !isCollapsed.value) {
       updateCollapsedHeight()
     }
     // Observe container width to toggle Diff side-by-side for better UX
@@ -543,10 +619,12 @@ const stopCreateEditorWatch = watch(
           catch {}
         }
         // Recompute height when layout mode changes or width changes
-        if (isExpanded.value)
-          updateExpandedHeight()
-        else
-          updateCollapsedHeight()
+        if (!isCollapsed.value) {
+          if (isExpanded.value)
+            updateExpandedHeight()
+          else
+            updateCollapsedHeight()
+        }
       })
       resizeObserver.observe(codeEditor.value as Element)
     }
@@ -554,9 +632,9 @@ const stopCreateEditorWatch = watch(
     if (props.loading === false) {
       await nextTick()
       requestAnimationFrame(() => {
-        if (isExpanded.value)
+        if (isExpanded.value && !isCollapsed.value)
           updateExpandedHeight()
-        else
+        else if (!isCollapsed.value)
           updateCollapsedHeight()
       })
     }
@@ -603,9 +681,9 @@ watch(
 
     const ed = isDiff.value ? getDiffEditorView() : getEditorView()
     ed?.updateOptions?.({ fontSize: props.monacoOptions?.fontSize ?? codeFontSize.value })
-    if (isExpanded.value)
+    if (isExpanded.value && !isCollapsed.value)
       updateExpandedHeight()
-    else
+    else if (!isCollapsed.value)
       updateCollapsedHeight()
   },
   { deep: true, immediate: false },
@@ -623,11 +701,12 @@ stopLoadingWatch = watch(
     if (loaded === false) {
       await nextTick()
       requestAnimationFrame(() => {
-        if (isExpanded.value)
-          updateExpandedHeight()
-        else
-          updateCollapsedHeight()
-
+        if (!isCollapsed.value) {
+          if (isExpanded.value)
+            updateExpandedHeight()
+          else
+            updateCollapsedHeight()
+        }
         stopLoadingWatch?.()
         stopLoadingWatch = undefined
       })
@@ -697,6 +776,18 @@ onUnmounted(() => {
       <!-- right slot / fallback action buttons -->
       <slot name="header-right">
         <div class="flex items-center space-x-2">
+          <button
+            type="button"
+            class="code-action-btn p-2 text-xs rounded-md transition-colors hover:bg-[var(--vscode-editor-selectionBackground)]"
+            :aria-pressed="isCollapsed"
+            @click="toggleHeaderCollapse"
+            @mouseenter="onBtnHover($event, isCollapsed ? (t('common.expand') || 'Expand') : (t('common.collapse') || 'Collapse'))"
+            @focus="onBtnHover($event, isCollapsed ? (t('common.expand') || 'Expand') : (t('common.collapse') || 'Collapse'))"
+            @mouseleave="onBtnLeave"
+            @blur="onBtnLeave"
+          >
+            <Icon icon="lucide:chevron-right" class="w-3 h-3" :style="{ rotate: isCollapsed ? '0deg' : '90deg' }" />
+          </button>
           <template v-if="props.showFontSizeButtons && props.enableFontSizeControl">
             <button
               type="button"
@@ -781,7 +872,7 @@ onUnmounted(() => {
         </div>
       </slot>
     </div>
-    <div ref="codeEditor" class="code-editor-container" />
+    <div v-show="!isCollapsed" ref="codeEditor" class="code-editor-container" />
     <!-- Teleported tooltip removed: using singleton composable instead -->
     <!-- Copy status for screen readers -->
     <span class="sr-only" aria-live="polite" role="status">{{ copyText ? t('common.copied') || 'Copied' : '' }}</span>
