@@ -285,28 +285,28 @@ Tip: to avoid layout shift when switching from placeholder to the image, keep th
 
 ### LinkNode: underline animation & color customization
 
-`LinkNode`（库内部用于渲染链接的节点）现在支持通过 props 在运行时定制下划线动画与颜色，而不需要覆盖全局样式。默认行为与之前保持一致。
+`LinkNode` (the internal node used to render anchors) now supports runtime customization of underline animation and color via props — no need to override global CSS. Defaults preserve the previous appearance.
 
-可用的 props（传递给渲染 `LinkNode` 的组件）：
+Available props (pass to the component that renders `LinkNode`):
 
 | Name | Type | Default | Description |
 | ---- | ---- | ------- | ----------- |
-| `color` | `string` | `#0366d6` | Link 文本颜色（任意合法 CSS 颜色）。下划线使用 `currentColor`，因此会跟随此颜色。 |
-| `underlineHeight` | `number` | `2` | 下划线高度（像素）。 |
-| `underlineBottom` | `number \| string` | `-3px` | 下划线距离文本底部的偏移（像素或任意 CSS 长度，如 `0.2rem`）。 |
-| `animationDuration` | `number` | `0.8` | 动画总时长（秒）。 |
-| `animationOpacity` | `number` | `0.9` | 下划线的不透明度。 |
-| `animationTiming` | `string` | `linear` | 动画时间函数（如 `linear`, `ease`, `ease-in-out`）。 |
-| `animationIteration` | `string \| number` | `infinite` | 动画迭代次数或 `'infinite'`。 |
+| `color` | `string` | `#0366d6` | Link text color (any valid CSS color). The underline uses `currentColor`, so it follows this color. |
+| `underlineHeight` | `number` | `2` | Underline thickness in pixels. |
+| `underlineBottom` | `number \| string` | `-3px` | Offset from the text baseline; accepts px or any CSS length (e.g., `0.2rem`). |
+| `animationDuration` | `number` | `0.8` | Total animation duration in seconds. |
+| `animationOpacity` | `number` | `0.9` | Underline opacity. |
+| `animationTiming` | `string` | `linear` | CSS timing function (e.g., `linear`, `ease`, `ease-in-out`). |
+| `animationIteration` | `string \| number` | `infinite` | Animation iteration count or `'infinite'`. |
 
-示例：
+Example:
 
 ```vue
 <template>
-  <!-- 默认样式 -->
+  <!-- Default styling -->
   <LinkNode :node="node" />
 
-  <!-- 自定义颜色和下划线样式 -->
+  <!-- Custom color and underline styling -->
   <LinkNode
     :node="node"
     color="#e11d48"
@@ -320,8 +320,8 @@ Tip: to avoid layout shift when switching from placeholder to the image, keep th
 ```
 
 Notes:
-- 下划线颜色使用 `currentColor`，因此默认会与 `color` prop 保持一致。如果需要独立控制下划线颜色，可以考虑后续增加 `underlineColor` prop（这是一个小改动）。
-- 这些 props 均为可选，未提供时会使用默认值，保证向后兼容。
+- The underline color uses `currentColor`, so by default it matches the `color` prop. If you need an independent underline color, consider a small local CSS override or opening an issue to discuss exposing an `underlineColor` prop.
+- All props are optional; when omitted, sensible defaults are used to remain backward compatible.
 
 ### Override Language Icons
 
