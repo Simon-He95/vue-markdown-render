@@ -8,6 +8,7 @@ import { useSafeI18n } from '../../composables/useSafeI18n'
 import { hideTooltip, showTooltipForAnchor } from '../../composables/useSingletonTooltip'
 import { getLanguageIcon, languageMap } from '../../utils'
 import MermaidBlockNode from '../MermaidBlockNode'
+import PreCodeNode from '../PreCodeNode'
 import { getIconify, getUseMonaco } from './utils'
 
 interface MonacoOptions {
@@ -95,7 +96,7 @@ let cleanupEditor: () => void = () => {}
 let detectLanguage: (code: string) => string = () => props.node.language || 'plaintext'
 let setTheme: (theme: MonacoTheme) => Promise<void> = async () => {}
 const isDiff = computed(() => props.node.diff)
-
+const usePreCodeRender = ref(false)
 ;(async () => {
   try {
     const mod = await getUseMonaco()
@@ -137,7 +138,9 @@ const isDiff = computed(() => props.node.diff)
     }
   }
   catch {
-    // vue-use-monaco not installed; fall back to no-op editor behavior
+    console.warn('vue-use-monaco not available; code blocks will not be rendered with Monaco editor')
+    // 使用 PreCodeNode 渲染
+    usePreCodeRender.value = true
   }
 })()
 
@@ -745,7 +748,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <MermaidBlockNode v-if="isMermaid" :node="node" :loading="props.loading" />
+  <MermaidBlockNode v-if="isMermaid" :node="(node as any)" :loading="props.loading" />
+  <PreCodeNode v-else-if="usePreCodeRender" :node="(node as any)" :loading="props.loading" />
   <div
     v-else
     ref="container"

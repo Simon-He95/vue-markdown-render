@@ -1,5 +1,18 @@
 <script setup lang="ts">
-import { getNodeComponents } from '../../utils/nodeComponents'
+import { getCustomNodeComponents } from '../../utils/nodeComponents'
+import EmojiNode from '../EmojiNode'
+import FootnoteReferenceNode from '../FootnoteReferenceNode'
+import HighlightNode from '../HighlightNode'
+import InlineCodeNode from '../InlineCodeNode'
+import InsertNode from '../InsertNode'
+import LinkNode from '../LinkNode'
+import MathInlineNode from '../MathInlineNode'
+import ReferenceNode from '../ReferenceNode'
+import StrikethroughNode from '../StrikethroughNode'
+import StrongNode from '../StrongNode'
+import SubscriptNode from '../SubscriptNode'
+import SuperscriptNode from '../SuperscriptNode'
+import TextNode from '../TextNode'
 
 interface NodeChild {
   type: string
@@ -16,7 +29,22 @@ defineProps<{
 }>()
 
 // Available node components for child rendering
-const nodeComponents = getNodeComponents()
+const nodeComponents = {
+  text: TextNode,
+  inline_code: InlineCodeNode,
+  link: LinkNode,
+  strong: StrongNode,
+  strikethrough: StrikethroughNode,
+  highlight: HighlightNode,
+  insert: InsertNode,
+  subscript: SubscriptNode,
+  superscript: SuperscriptNode,
+  emoji: EmojiNode,
+  footnote_reference: FootnoteReferenceNode,
+  math_inline: MathInlineNode,
+  reference: ReferenceNode,
+  ...(getCustomNodeComponents() || {}),
+}
 </script>
 
 <template>

@@ -33,6 +33,7 @@ import TableNode from './components/TableNode'
 import TextNode from './components/TextNode'
 import ThematicBreakNode from './components/ThematicBreakNode'
 import { setLanguageIconResolver } from './utils/languageIcon'
+import { setCustomComponents } from './utils/nodeComponents'
 import './index.css'
 
 export * from './utils'
@@ -62,6 +63,7 @@ export {
   ParagraphNode,
   PreCodeNode,
   ReferenceNode,
+  setCustomComponents,
   StrikethroughNode,
   StrongNode,
   SubscriptNode,

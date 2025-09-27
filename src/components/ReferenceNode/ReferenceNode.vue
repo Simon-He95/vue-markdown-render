@@ -8,11 +8,7 @@ defineProps<{
   messageId?: string
   threadId?: string
 }>()
-defineEmits<{
-  (e: 'click'): void
-  (e: 'mouseLeave'): void
-  (e: 'mouseEnter'): void
-}>()
+defineEmits(['click', 'mouseEnter', 'mouseLeave'])
 </script>
 
 <template>
@@ -20,9 +16,9 @@ defineEmits<{
     class="reference-node cursor-pointer bg-accent text-xs rounded-md px-1.5 mx-0.5 hover:bg-secondary"
     role="button"
     tabindex="0"
-    @click="$emit('click')"
-    @mouseenter="$emit('mouseEnter')"
-    @mouseleave="$emit('mouseLeave')"
+    @click="$emit('click', $event, node.id, messageId, threadId)"
+    @mouseenter="$emit('mouseEnter', $event, node.id, messageId, threadId)"
+    @mouseleave="$emit('mouseLeave', $event, node.id, messageId, threadId)"
   >
     {{ node.id }}
   </span>

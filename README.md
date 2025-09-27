@@ -173,12 +173,11 @@ The streaming-optimized engine delivers:
 | ------------------ | --------------------- | -------- | -------------------------------------------------- |
 | `content`          | `string`              | ✓        | Markdown string to render                          |
 | `nodes`            | `BaseNode[]`          |          | Parsed markdown AST nodes (alternative to content) |
-| `customComponents` | `Record<string, any>` |          | Custom Vue components for rendering                |
 | `renderCodeBlocksAsPre` | `boolean` | | When true, render all `code_block` nodes as simple `<pre><code>` blocks (uses `PreCodeNode`) instead of the full `CodeBlockNode`. Useful for lightweight, dependency-free rendering of multi-line text such as AI "thinking" outputs. Defaults to `false`. |
 
 > Either `content` or `nodes` must be provided.
 
-Note: when using the component in a Vue template, camelCase prop names should be written in kebab-case. For example, `customComponents` becomes `custom-components` in templates.
+Note: when using the component in a Vue template, camelCase prop names should be written in kebab-case (for example, `renderCodeBlocksAsPre` -> `render-code-blocks-as-pre`).
 
 ## New prop: `renderCodeBlocksAsPre`
 
@@ -206,12 +205,38 @@ const markdown = `Here is an AI thinking output:\n\n\`\`\`text\nStep 1...\nStep 
 </template>
 ```
 
-## Advanced
+### Advanced
 
-- **Custom Components**:
-  Pass your own components via `customComponents` prop to render custom tags inside markdown.
+Custom Components
 
-- **TypeScript**:
+Instead of passing a `customComponents` prop, the library exposes a runtime API to override node component mappings globally. Import `setCustomComponents` from the package and call it during app initialization (for example in your `main.ts`) to provide a mapping of node names to Vue components.
+
+Example (global replacement):
+
+```ts
+import { createApp } from 'vue'
+import MarkdownRender, { setCustomComponents } from 'vue-renderer-markdown'
+import App from './App.vue'
+import MyCustomNode from './components/MyCustomNode.vue'
+
+const app = createApp(App)
+
+// Provide a mapping of node keys to components. Keys match the internal node names
+// (for example: `admonition`, `code_block`, `image`, `math_block`, etc.).
+setCustomComponents({
+  admonition: MyCustomNode,
+  // ...other overrides
+})
+
+app.mount('#app')
+```
+
+Notes:
+
+- `setCustomComponents` applies globally to all `MarkdownRender` instances. Call it before mounting your app to ensure components are registered before rendering occurs.
+- If you need per-instance overrides, you can still merge your mapping into the result of the `getNodeComponents` util in advanced setups (internal API) but the public supported approach is to use `setCustomComponents`.
+
+**TypeScript**:
   Full type support. Import types as needed:
   ```ts
   import type { MyMarkdownProps } from 'vue-renderer-markdown/dist/types'

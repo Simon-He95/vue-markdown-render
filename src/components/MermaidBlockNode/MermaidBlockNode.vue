@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CodeBlockNode } from '../../types'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { hideTooltip, showTooltipForAnchor } from '../../composables/useSingletonTooltip'
 import mermaidIconUrl from '../../icon/mermaid.svg?url'
@@ -8,11 +9,7 @@ import { getMermaid } from './mermaid'
 const props = withDefaults(
   // 全屏按钮禁用状态
   defineProps<{
-    node: {
-      type: 'code_block'
-      language: string
-      code: string
-    }
+    node: CodeBlockNode
     maxHeight?: string | null
     loading?: boolean
   }>(),
@@ -1462,14 +1459,6 @@ watch(
         <!-- ...existing preview content... -->
         <div class="absolute top-2 right-2 z-10 rounded-lg">
           <div class="flex items-center gap-2 backdrop-blur rounded-lg">
-            <span
-              v-if="!showSource && props.loading"
-              class="px-2.5 py-1 text-[10px] rounded-full bg-gradient-to-r from-sky-500/90 to-indigo-500/90 text-white select-none inline-flex items-center gap-1.5 shadow-sm ring-1 ring-white/20 backdrop-blur-sm"
-              title="Rendering in progress"
-            >
-              <component :is="Icon ? Icon : 'span'" v-bind="{ icon: 'lucide:loader-2', class: 'w-3 h-3 animate-spin' }" />
-              Rendering
-            </span>
             <button
               class="p-2 text-xs rounded text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               @click="zoomIn"
