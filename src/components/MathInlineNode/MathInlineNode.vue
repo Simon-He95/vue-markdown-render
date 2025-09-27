@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import katex from 'katex'
-import { onUnmounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   node: {
@@ -13,42 +13,32 @@ const props = defineProps<{
 const mathElement = ref<HTMLElement | null>(null)
 
 function renderMath() {
-  const el = mathElement.value
-  const content = props.node?.content ?? ''
-
-  if (!el)
+  if (!mathElement.value || !props.node.content)
     return
-
-  if (!content) {
-    el.textContent = props.node?.raw ?? ''
-    return
-  }
 
   try {
-    const html = katex.renderToString(content, {
+    katex.render(props.node.content, mathElement.value, {
       throwOnError: false,
       displayMode: false,
-      output: 'htmlAndMathml',
+      output: 'html',
       strict: 'ignore',
     })
-
-    el.innerHTML = html
   }
   catch (error) {
     console.error('KaTeX rendering error:', error)
-    el.textContent = props.node?.raw ?? ''
+    mathElement.value.textContent = props.node.raw
   }
 }
 
 watch(
   () => props.node.content,
-  renderMath,
-  { immediate: true, flush: 'post' },
+  () => {
+    renderMath()
+  },
 )
 
-onUnmounted(() => {
-  if (mathElement.value)
-    mathElement.value.innerHTML = ''
+onMounted(() => {
+  renderMath()
 })
 </script>
 

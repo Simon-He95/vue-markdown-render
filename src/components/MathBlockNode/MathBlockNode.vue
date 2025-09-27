@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import katex from 'katex'
-import { onUnmounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   node: {
@@ -12,55 +12,38 @@ const props = defineProps<{
 
 const mathElement = ref<HTMLElement | null>(null)
 
-// Function to render math using KaTeX. We use renderToString to produce
-// HTML once and set innerHTML to reduce DOM thrash.
+// Function to render math using KaTeX
 function renderMath() {
-  const el = mathElement.value
-  const content = props.node?.content ?? ''
-
-  if (!el)
+  if (!mathElement.value || !props.node.content)
     return
-
-  // If there's no content, fall back to showing the raw text (safe textContent)
-  if (!content) {
-    el.textContent = props.node?.raw ?? ''
-    return
-  }
 
   try {
-    const html = katex.renderToString(content, {
+    katex.render(props.node.content, mathElement.value, {
       throwOnError: false,
-      displayMode: true,
-      // Provide MathML as well for better accessibility
-      output: 'htmlAndMathml',
+      displayMode: true, // Display mode for block math
+      output: 'html',
       strict: 'ignore',
     })
-
-    // Replace contents with KaTeX output
-    el.innerHTML = html
   }
   catch (error) {
-    // Keep the error visible for debugging, but don't break the UI
-    // Fallback to plain text
-
     console.error('KaTeX rendering error:', error)
-    el.textContent = props.node?.raw ?? ''
+    // Fallback to displaying the raw math
+    mathElement.value.textContent = props.node.raw
   }
 }
 
-// Watch the node content and render immediately on mount. Use flush: 'post'
-// so rendering runs after DOM updates.
+// Render math on component mount
+onMounted(() => {
+  renderMath()
+})
+
+// Re-render when content changes
 watch(
   () => props.node.content,
-  renderMath,
-  { immediate: true, flush: 'post' },
+  () => {
+    renderMath()
+  },
 )
-
-// Cleanup on unmount
-onUnmounted(() => {
-  if (mathElement.value)
-    mathElement.value.innerHTML = ''
-})
 </script>
 
 <template>
