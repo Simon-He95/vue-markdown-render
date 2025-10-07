@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Highlighter } from 'shiki'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useSafeI18n } from '../../composables/useSafeI18n'
 import { hideTooltip, showTooltipForAnchor } from '../../composables/useSingletonTooltip'
 import { getLanguageIcon, languageMap } from '../../utils'
@@ -65,6 +65,11 @@ const isExpanded = ref(false)
 const isCollapsed = ref(false)
 const codeBlockContent = ref<HTMLElement | null>(null)
 
+// Cache for computed language transformations to avoid recalculations
+let cachedLangLower = ''
+let cachedDisplayLanguage = ''
+let cachedLanguageIcon = ''
+
 // Auto-scroll state management
 const autoScrollEnabled = ref(true) // Start with auto-scroll enabled
 const lastScrollTop = ref(0) // Track last scroll position to detect scroll direction
@@ -82,38 +87,47 @@ const fontBaselineReady = computed(() => {
   return typeof a === 'number' && Number.isFinite(a) && a > 0 && typeof b === 'number' && Number.isFinite(b) && b > 0
 })
 
-// 计算用于显示的语言名称
-const displayLanguage = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return languageMap[lang] || lang.charAt(0).toUpperCase() + lang.slice(1)
-})
+// Memoized language transformations to avoid repeated trim().toLowerCase() calls
+function updateLanguageCache() {
+  const newLangLower = codeLanguage.value.trim().toLowerCase()
+  if (cachedLangLower !== newLangLower) {
+    cachedLangLower = newLangLower
+    cachedDisplayLanguage = languageMap[newLangLower] || newLangLower.charAt(0).toUpperCase() + newLangLower.slice(1)
+    cachedLanguageIcon = getLanguageIcon(newLangLower.split(':')[0])
+  }
+}
 
-const isMermaid = computed(
-  () => codeLanguage.value.trim().toLowerCase() === 'mermaid',
-)
+// Initialize cache
+updateLanguageCache()
 
-// Computed property for language icon
-const languageIcon = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return getLanguageIcon(lang.split(':')[0])
-})
+// 计算用于显示的语言名称 (now uses cached value)
+const displayLanguage = computed(() => cachedDisplayLanguage)
+
+const isMermaid = computed(() => cachedLangLower === 'mermaid')
+
+// Computed property for language icon (now uses cached value)
+const languageIcon = computed(() => cachedLanguageIcon)
 
 // Check if the language is previewable (HTML or SVG)
 const isPreviewable = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return props.isShowPreview && (lang === 'html' || lang === 'svg')
+  return props.isShowPreview && (cachedLangLower === 'html' || cachedLangLower === 'svg')
 })
 
 // Compute inline style for container to respect optional min/max width
+// Memoized to prevent recalculation when props haven't changed
 const containerStyle = computed(() => {
+  const { minWidth, maxWidth } = props
+  if (!minWidth && !maxWidth)
+    return {}
+
   const s: Record<string, string> = {}
   const fmt = (v: string | number | undefined) => {
     if (v == null)
       return undefined
     return typeof v === 'number' ? `${v}px` : String(v)
   }
-  const min = fmt(props.minWidth)
-  const max = fmt(props.maxWidth)
+  const min = fmt(minWidth)
+  const max = fmt(maxWidth)
   if (min)
     s.minWidth = min
   if (max)
@@ -130,7 +144,13 @@ const contentStyle = computed(() => {
 
 const highlighter = ref<Highlighter | null>(null)
 const highlightedCode = ref<string>('')
-watch(() => props.themes, async (newThemes) => {
+
+// Optimized themes watcher - only recreate highlighter when themes actually change
+watch(() => props.themes, async (newThemes, oldThemes) => {
+  // Skip if themes haven't actually changed
+  if (oldThemes && JSON.stringify(newThemes) === JSON.stringify(oldThemes))
+    return
+
   disposeHighlighter()
   highlighter.value = await registerHighlight({
     themes: newThemes as any,
@@ -142,33 +162,57 @@ watch(() => props.themes, async (newThemes) => {
   }
 }, { immediate: true })
 
-watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
-  if (lang !== codeLanguage.value)
-    codeLanguage.value = lang
-  if (!highlighter.value)
+// Consolidated code and language watcher with early returns
+watch(() => [props.node.code, props.node.language] as const, async ([code, lang], old) => {
+  // Update language cache if changed
+  if (!old || lang !== old[1]) {
+    if (lang !== codeLanguage.value) {
+      codeLanguage.value = lang
+      updateLanguageCache()
+    }
+  }
+
+  // Early returns to avoid unnecessary work
+  if (!highlighter.value || !code)
     return
-  if (!code)
+
+  // Skip if code and language haven't changed
+  if (old && code === old[0] && lang === old[1])
     return
+
   const theme = props.themes && props.themes.length > 0 ? (props.isDark ? props.themes[0] : props.themes[1] || props.themes[0]) : (props.isDark ? props.darkTheme || 'vitesse-dark' : props.lightTheme || 'vitesse-light')
-  lang = lang.split(':')[0] // 支持 language:variant 形式
-  highlightedCode.value = await highlighter.value.codeToHtml(code, { lang, theme })
+  const langBase = lang.split(':')[0] // 支持 language:variant 形式
+  highlightedCode.value = await highlighter.value.codeToHtml(code, { lang: langBase, theme })
 })
 
 // Auto-scroll to bottom when content changes (if not expanded and auto-scroll is enabled)
-watch(() => props.node.code, async () => {
-  if (isExpanded.value || !autoScrollEnabled.value)
+// Debounced to prevent excessive scroll updates
+let scrollRafId: number | null = null
+watch(() => props.node.code, async (newCode, oldCode) => {
+  // Skip if code hasn't actually changed or conditions aren't met
+  if (newCode === oldCode || isExpanded.value || !autoScrollEnabled.value)
     return
+
+  // Cancel pending scroll
+  if (scrollRafId != null) {
+    cancelAnimationFrame(scrollRafId)
+  }
 
   await nextTick()
-  const content = codeBlockContent.value
-  if (!content)
-    return
 
-  // Check if content has scrollbar (scrollHeight > clientHeight)
-  if (content.scrollHeight > content.clientHeight) {
-    // Scroll to bottom
-    content.scrollTop = content.scrollHeight
-  }
+  // Schedule scroll in next frame
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = null
+    const content = codeBlockContent.value
+    if (!content)
+      return
+
+    // Check if content has scrollbar (scrollHeight > clientHeight)
+    if (content.scrollHeight > content.clientHeight) {
+      // Scroll to bottom
+      content.scrollTop = content.scrollHeight
+    }
+  })
 })
 
 // Check if user is at the bottom of scroll area
@@ -304,6 +348,14 @@ function previewCode() {
     title: artifactTitle,
   })
 }
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (scrollRafId != null) {
+    cancelAnimationFrame(scrollRafId)
+    scrollRafId = null
+  }
+})
 </script>
 
 <template>
