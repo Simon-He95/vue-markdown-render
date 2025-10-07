@@ -81,6 +81,11 @@ let expandRafId: number | null = null
 const heightBeforeCollapse = ref<number | null>(null)
 let resumeGuardFrames = 0
 
+// Cache for computed language transformations to avoid recalculations
+let cachedLangLower = ''
+let cachedDisplayLanguage = ''
+let cachedLanguageIcon = ''
+
 const Icon = getIconify()
 
 // Lazy-load `vue-use-monaco` helpers at runtime so consumers who don't install
@@ -166,7 +171,18 @@ const CONTENT_PADDING = 0
 const LINE_EXTRA_PER_LINE = 1.5
 const PIXEL_EPSILON = 1
 
+// Cache for DOM measurements to avoid repeated expensive operations
+let cachedLineHeight: number | null = null
+let cachedFontSize: number | null = null
+let cacheTimestamp = 0
+const CACHE_TTL = 1000 // Cache valid for 1 second
+
 function measureLineHeightFromDom(): number | null {
+  const now = Date.now()
+  if (cachedLineHeight !== null && (now - cacheTimestamp) < CACHE_TTL) {
+    return cachedLineHeight
+  }
+
   try {
     const root = codeEditor.value as HTMLElement | null
     if (!root)
@@ -174,8 +190,11 @@ function measureLineHeightFromDom(): number | null {
     const lineEl = root.querySelector('.view-lines .view-line') as HTMLElement | null
     if (lineEl) {
       const h = Math.ceil(lineEl.getBoundingClientRect().height)
-      if (h > 0)
+      if (h > 0) {
+        cachedLineHeight = h
+        cacheTimestamp = now
         return h
+      }
     }
   }
   catch {}
@@ -183,6 +202,11 @@ function measureLineHeightFromDom(): number | null {
 }
 
 function readActualFontSizeFromEditor(): number | null {
+  const now = Date.now()
+  if (cachedFontSize !== null && (now - cacheTimestamp) < CACHE_TTL) {
+    return cachedFontSize
+  }
+
   try {
     const ed = isDiff.value ? getDiffEditorView()?.getModifiedEditor?.() ?? getDiffEditorView() : getEditorView()
     const mon = getEditor()
@@ -190,8 +214,11 @@ function readActualFontSizeFromEditor(): number | null {
     if (ed && key != null) {
       const info = ed.getOption?.(key)
       const size = info?.fontSize
-      if (typeof size === 'number' && Number.isFinite(size) && size > 0)
+      if (typeof size === 'number' && Number.isFinite(size) && size > 0) {
+        cachedFontSize = size
+        cacheTimestamp = now
         return size
+      }
     }
   }
   catch {}
@@ -202,13 +229,24 @@ function readActualFontSizeFromEditor(): number | null {
       if (lineEl) {
         const fs = window.getComputedStyle(lineEl).fontSize
         const m = fs && fs.match(/^(\d+(?:\.\d+)?)/)
-        if (m)
-          return Number.parseFloat(m[1])
+        if (m) {
+          const size = Number.parseFloat(m[1])
+          cachedFontSize = size
+          cacheTimestamp = now
+          return size
+        }
       }
     }
   }
   catch {}
   return null
+}
+
+// Invalidate cache when font size changes
+function invalidateDomCache() {
+  cachedLineHeight = null
+  cachedFontSize = null
+  cacheTimestamp = 0
 }
 
 function getLineHeightSafe(editor: any): number {
@@ -254,16 +292,19 @@ function increaseCodeFont() {
   const base = ensureFontBaseline()
   const after = Math.min(codeFontMax, base + codeFontStep)
   codeFontSize.value = after
+  invalidateDomCache()
 }
 function decreaseCodeFont() {
   const base = ensureFontBaseline()
   const after = Math.max(codeFontMin, base - codeFontStep)
   codeFontSize.value = after
+  invalidateDomCache()
 }
 function resetCodeFont() {
   ensureFontBaseline()
   if (Number.isFinite(defaultCodeFontSize.value))
     codeFontSize.value = defaultCodeFontSize.value as number
+  invalidateDomCache()
 }
 
 function computeContentHeight(): number | null {
@@ -413,61 +454,75 @@ function getMaxHeightValue(): number {
   return m ? Number.parseFloat(m[1]) : 500
 }
 
+// Memoized language transformations to avoid repeated trim().toLowerCase() calls
+function updateLanguageCache() {
+  const newLangLower = codeLanguage.value.trim().toLowerCase()
+  if (cachedLangLower !== newLangLower) {
+    cachedLangLower = newLangLower
+    cachedDisplayLanguage = languageMap[newLangLower] || newLangLower.charAt(0).toUpperCase() + newLangLower.slice(1)
+    cachedLanguageIcon = getLanguageIcon(newLangLower.split(':')[0])
+  }
+}
+
+// Initialize cache
+updateLanguageCache()
+
 // Check if the language is previewable (HTML or SVG)
 const isPreviewable = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return props.isShowPreview && (lang === 'html' || lang === 'svg')
+  return props.isShowPreview && (cachedLangLower === 'html' || cachedLangLower === 'svg')
 })
 
 // Check if the code block is a Mermaid diagram
-const isMermaid = computed(
-  () => codeLanguage.value.trim().toLowerCase() === 'mermaid',
-)
+const isMermaid = computed(() => cachedLangLower === 'mermaid')
 
+// Consolidated watch for both language and code changes
 watch(
-  () => props.node.language,
-  (newLanguage) => {
-    codeLanguage.value = newLanguage
-  },
-)
+  () => [props.node.language, props.node.code] as const,
+  ([newLanguage, newCode], [oldLanguage, oldCode]) => {
+    // Update language if changed
+    if (newLanguage !== oldLanguage) {
+      codeLanguage.value = newLanguage
+      updateLanguageCache()
+    }
 
-watch(
-  () => props.node.code,
-  (newCode) => {
-    if (!codeLanguage.value)
-      codeLanguage.value = detectLanguage(newCode)
+    // Only update code if it actually changed
+    if (newCode !== oldCode) {
+      if (!codeLanguage.value)
+        codeLanguage.value = detectLanguage(newCode)
 
-    isDiff.value
-      ? updateDiffCode(props.node.originalCode || '', props.node.updatedCode || '', codeLanguage.value)
-      : updateCode(newCode, codeLanguage.value)
-    if (isExpanded.value) {
-      requestAnimationFrame(() => updateExpandedHeight())
+      isDiff.value
+        ? updateDiffCode(props.node.originalCode || '', props.node.updatedCode || '', codeLanguage.value)
+        : updateCode(newCode, codeLanguage.value)
+
+      // Batch height updates to prevent multiple reflows
+      if (isExpanded.value) {
+        requestAnimationFrame(() => updateExpandedHeight())
+      }
     }
   },
 )
 
-// 计算用于显示的语言名称
-const displayLanguage = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return languageMap[lang] || lang.charAt(0).toUpperCase() + lang.slice(1)
-})
+// 计算用于显示的语言名称 (now uses cached value)
+const displayLanguage = computed(() => cachedDisplayLanguage)
 
-// Computed property for language icon
-const languageIcon = computed(() => {
-  const lang = codeLanguage.value.trim().toLowerCase()
-  return getLanguageIcon(lang.split(':')[0])
-})
+// Computed property for language icon (now uses cached value)
+const languageIcon = computed(() => cachedLanguageIcon)
 
 // Compute inline style for container to respect optional min/max width
+// Memoized to prevent recalculation when props haven't changed
 const containerStyle = computed(() => {
+  const { minWidth, maxWidth } = props
+  if (!minWidth && !maxWidth)
+    return {}
+
   const s: Record<string, string> = {}
   const fmt = (v: string | number | undefined) => {
     if (v == null)
       return undefined
     return typeof v === 'number' ? `${v}px` : String(v)
   }
-  const min = fmt(props.minWidth)
-  const max = fmt(props.maxWidth)
+  const min = fmt(minWidth)
+  const max = fmt(maxWidth)
   if (min)
     s.minWidth = min
   if (max)
@@ -575,18 +630,29 @@ function toggleHeaderCollapse() {
   }
 }
 
+// Debounced font size watcher to prevent excessive updates
+let fontSizeUpdateRaf: number | null = null
 watch(
   () => codeFontSize.value,
   (size, _prev) => {
-    const editor = isDiff.value ? getDiffEditorView() : getEditorView()
-    if (!editor)
-      return
-    if (!(typeof size === 'number' && Number.isFinite(size) && size > 0))
-      return
-    editor.updateOptions({ fontSize: size })
-    // In automaticLayout mode, no manual height updates are needed
-    if (isExpanded.value && !isCollapsed.value)
-      updateExpandedHeight()
+    // Cancel any pending update
+    if (fontSizeUpdateRaf != null) {
+      cancelAnimationFrame(fontSizeUpdateRaf)
+    }
+
+    // Schedule update in next frame to batch changes
+    fontSizeUpdateRaf = requestAnimationFrame(() => {
+      fontSizeUpdateRaf = null
+      const editor = isDiff.value ? getDiffEditorView() : getEditorView()
+      if (!editor)
+        return
+      if (!(typeof size === 'number' && Number.isFinite(size) && size > 0))
+        return
+      editor.updateOptions({ fontSize: size })
+      // In automaticLayout mode, no manual height updates are needed
+      if (isExpanded.value && !isCollapsed.value)
+        updateExpandedHeight()
+    })
   },
   { flush: 'post', immediate: false },
 )
@@ -627,11 +693,15 @@ function setAutomaticLayout(expanded: boolean) {
 // 延迟创建编辑器：仅当不是 Mermaid 时才创建，避免无意义的初始化
 const stopCreateEditorWatch = watch(
   () => [codeEditor.value, isMermaid.value, isDiff.value] as const,
-  async ([el]) => {
+  async ([el, isMermaidVal, isDiffVal], old) => {
     if (!el || !createEditor)
       return
 
-    if (isMermaid.value) {
+    // Skip if editor already created and values haven't changed
+    if (editorCreated.value && old && isMermaidVal === old[1] && isDiffVal === old[2])
+      return
+
+    if (isMermaidVal) {
       cleanupEditor()
       stopCreateEditorWatch()
       return
@@ -639,14 +709,14 @@ const stopCreateEditorWatch = watch(
 
     editorCreated.value = true
 
-    if (isDiff.value) {
+    if (isDiffVal) {
       safeClean()
       await createDiffEditor(el as HTMLElement, props.node.originalCode || '', props.node.updatedCode || '', codeLanguage.value)
     }
     else {
       await createEditor(el as HTMLElement, props.node.code, codeLanguage.value)
     }
-    const editor = isDiff.value ? getDiffEditorView() : getEditorView()
+    const editor = isDiffVal ? getDiffEditorView() : getEditorView()
     if (typeof props.monacoOptions?.fontSize === 'number') {
       editor?.updateOptions({ fontSize: props.monacoOptions.fontSize, automaticLayout: false })
       defaultCodeFontSize.value = props.monacoOptions.fontSize
@@ -683,14 +753,20 @@ const stopCreateEditorWatch = watch(
   },
 )
 
+// Optimized theme watcher - only update when editor is ready and theme actually changes
 const watchTheme = watch(
-  () => [props.darkTheme, props.lightTheme, editorCreated.value],
-  () => {
+  () => [props.darkTheme, props.lightTheme, props.isDark, editorCreated.value] as const,
+  ([darkTheme, lightTheme, isDark], old) => {
     if (!editorCreated.value)
       return
     if (isMermaid.value) {
       return watchTheme()
     }
+
+    // Only update theme if it actually changed
+    const oldIsDark = old?.[2]
+    if (old && isDark === oldIsDark && darkTheme === old[0] && lightTheme === old[1])
+      return
 
     themeUpdate()
   },
@@ -706,37 +782,50 @@ function themeUpdate() {
     setTheme(themeToSet)
 }
 
-// Watch for monacoOptions changes (deep) and try to update editor options or
-// recreate the editor when necessary.
+// Watch for monacoOptions changes - optimized to avoid deep watch overhead
+// Only watch fontSize specifically instead of deep watching entire object
+let monacoOptionsUpdateRaf: number | null = null
 const watchMonacoOptions = watch(
-  () => props.monacoOptions,
-  () => {
+  () => props.monacoOptions?.fontSize,
+  (fontSize) => {
     if (!createEditor)
       return
     if (isMermaid.value) {
       return watchMonacoOptions()
     }
 
-    const ed = isDiff.value ? getDiffEditorView() : getEditorView()
-    const applying = typeof props.monacoOptions?.fontSize === 'number'
-      ? props.monacoOptions.fontSize
-      : (Number.isFinite(codeFontSize.value) ? (codeFontSize.value as number) : undefined)
-    if (typeof applying === 'number' && Number.isFinite(applying) && applying > 0) {
-      ed?.updateOptions?.({ fontSize: applying })
+    // Cancel any pending update
+    if (monacoOptionsUpdateRaf != null) {
+      cancelAnimationFrame(monacoOptionsUpdateRaf)
     }
-    if (isExpanded.value && !isCollapsed.value)
-      updateExpandedHeight()
-    else if (!isCollapsed.value)
-      updateCollapsedHeight()
+
+    // Batch updates in next frame
+    monacoOptionsUpdateRaf = requestAnimationFrame(() => {
+      monacoOptionsUpdateRaf = null
+      const ed = isDiff.value ? getDiffEditorView() : getEditorView()
+      const applying = typeof fontSize === 'number'
+        ? fontSize
+        : (Number.isFinite(codeFontSize.value) ? (codeFontSize.value as number) : undefined)
+      if (typeof applying === 'number' && Number.isFinite(applying) && applying > 0) {
+        ed?.updateOptions?.({ fontSize: applying })
+      }
+      if (isExpanded.value && !isCollapsed.value)
+        updateExpandedHeight()
+      else if (!isCollapsed.value)
+        updateCollapsedHeight()
+    })
   },
-  { deep: true },
 )
 
 // 当 loading 变为 false 时：计算并缓存一次展开高度，随后停止观察
-
+// Optimized to avoid unnecessary work when loading state doesn't actually change
 const stopLoadingWatch = watch(
   () => props.loading,
-  async (loaded) => {
+  async (loaded, oldLoaded) => {
+    // Skip if loading state didn't actually change
+    if (loaded === oldLoaded)
+      return
+
     if (isMermaid.value) {
       nextTick(() => {
         stopLoadingWatch?.()
@@ -770,6 +859,17 @@ function stopExpandAutoResize() {
 onUnmounted(() => {
   // Ensure any RAF loops are stopped and editor resources are released
   stopExpandAutoResize()
+
+  // Cancel any pending RAF from watchers
+  if (fontSizeUpdateRaf != null) {
+    cancelAnimationFrame(fontSizeUpdateRaf)
+    fontSizeUpdateRaf = null
+  }
+  if (monacoOptionsUpdateRaf != null) {
+    cancelAnimationFrame(monacoOptionsUpdateRaf)
+    monacoOptionsUpdateRaf = null
+  }
+
   cleanupEditor()
 
   if (resizeSyncHandler) {
