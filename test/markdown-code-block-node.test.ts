@@ -75,4 +75,34 @@ describe('markdownCodeBlockNode props and features', () => {
     expect(isAtBottom(1000, 500, 100, 50)).toBe(false) // in middle
     expect(isAtBottom(1000, 0, 100, 50)).toBe(false) // at top
   })
+
+  it('should handle programmatic scroll without disabling auto-scroll', () => {
+    // Simulate the logic for handling programmatic vs user scrolls
+    let autoScrollEnabled = true
+    let isProgrammaticScroll = false
+    let lastScrollTop = 100
+
+    // Simulate programmatic scroll - should NOT disable auto-scroll
+    const handleScroll = (currentScrollTop: number, isProgrammatic: boolean) => {
+      if (isProgrammatic) {
+        // Ignore programmatic scrolls
+        return
+      }
+      // User scroll up - should disable
+      if (currentScrollTop < lastScrollTop) {
+        autoScrollEnabled = false
+      }
+      lastScrollTop = currentScrollTop
+    }
+
+    // Programmatic scroll should not change auto-scroll state
+    isProgrammaticScroll = true
+    handleScroll(100, isProgrammaticScroll)
+    expect(autoScrollEnabled).toBe(true)
+
+    // User scroll should disable auto-scroll when scrolling up
+    isProgrammaticScroll = false
+    handleScroll(50, isProgrammaticScroll) // scroll up from 100 to 50
+    expect(autoScrollEnabled).toBe(false)
+  })
 })

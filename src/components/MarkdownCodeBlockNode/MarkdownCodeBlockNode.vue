@@ -68,6 +68,7 @@ const codeBlockContent = ref<HTMLElement | null>(null)
 // Auto-scroll state management
 const autoScrollEnabled = ref(true) // Start with auto-scroll enabled
 const lastScrollTop = ref(0) // Track last scroll position to detect scroll direction
+const isProgrammaticScroll = ref(false) // Flag to ignore scroll events caused by programmatic scrolling
 
 // Font size control
 const codeFontMin = 10
@@ -168,8 +169,13 @@ watch(() => props.node.code, async () => {
 
   // Check if content has scrollbar (scrollHeight > clientHeight)
   if (content.scrollHeight > content.clientHeight) {
+    // Mark as programmatic scroll to avoid triggering handleScroll logic
+    isProgrammaticScroll.value = true
     // Scroll to bottom
     content.scrollTop = content.scrollHeight
+    // Clear flag after a frame to allow future user scrolls to be detected
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+    isProgrammaticScroll.value = false
   }
 })
 
@@ -183,6 +189,10 @@ function isAtBottom(element: HTMLElement, threshold = 50): boolean {
 function handleScroll() {
   const content = codeBlockContent.value
   if (!content || isExpanded.value)
+    return
+
+  // Ignore scroll events initiated by our programmatic scrollTo calls
+  if (isProgrammaticScroll.value)
     return
 
   const currentScrollTop = content.scrollTop
@@ -262,9 +272,14 @@ function toggleExpand() {
     content.style.overflow = 'auto'
     // When collapsing, re-enable auto-scroll and scroll to bottom
     autoScrollEnabled.value = true
-    nextTick(() => {
+    nextTick(async () => {
       if (content.scrollHeight > content.clientHeight) {
+        // Mark as programmatic scroll
+        isProgrammaticScroll.value = true
         content.scrollTop = content.scrollHeight
+        // Clear flag after a frame
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+        isProgrammaticScroll.value = false
       }
     })
   }
