@@ -158,25 +158,54 @@ watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
 })
 
 // Auto-scroll to bottom when content changes (if not expanded and auto-scroll is enabled)
+// Use retries because content height may not be stable immediately due to async syntax highlighting
 watch(() => props.node.code, async () => {
   if (isExpanded.value || !autoScrollEnabled.value)
     return
 
-  await nextTick()
   const content = codeBlockContent.value
   if (!content)
     return
 
-  // Check if content has scrollbar (scrollHeight > clientHeight)
-  if (content.scrollHeight > content.clientHeight) {
-    // Mark as programmatic scroll to avoid triggering handleScroll logic
-    isProgrammaticScroll.value = true
-    // Scroll to bottom
-    content.scrollTop = content.scrollHeight
-    // Clear flag after a frame to allow future user scrolls to be detected
-    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
-    isProgrammaticScroll.value = false
+  // Retry scrolling multiple times to handle async rendering (syntax highlighting, etc.)
+  async function scrollToBottomWithRetries(maxAttempts = 5, delay = 20) {
+    for (let i = 0; i < maxAttempts; i++) {
+      // Wait for Vue DOM updates and rendering
+      await nextTick()
+      await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+
+      if (!content)
+        return
+
+      const prevScrollHeight = content.scrollHeight
+
+      // Check if content has scrollbar and scroll to bottom
+      if (content.scrollHeight > content.clientHeight) {
+        try {
+          // Mark as programmatic scroll to avoid triggering handleScroll logic
+          isProgrammaticScroll.value = true
+          content.scrollTop = content.scrollHeight
+        }
+        finally {
+          // Always clear the flag after scrolling
+        }
+
+        // Wait for scroll event to be processed while flag is true
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+        // Clear flag to allow future user scrolls to be detected
+        isProgrammaticScroll.value = false
+      }
+
+      // If height didn't change much or we're at bottom, stop retrying
+      if (Math.abs(content.scrollHeight - prevScrollHeight) < 2 || isAtBottom(content, 2))
+        return
+
+      // Small delay before next attempt to allow async operations to complete
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
   }
+
+  await scrollToBottomWithRetries()
 })
 
 // Check if user is at the bottom of scroll area
