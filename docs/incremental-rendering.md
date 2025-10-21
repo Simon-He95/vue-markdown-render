@@ -51,9 +51,32 @@ The implementation performs true incremental DOM manipulation:
 
 2. **DOM Node Appending**: New syntax-highlighted nodes are appended to existing DOM instead of replacing everything
 
-3. **Full Re-render When Needed**: Non-incremental changes (language change, theme change, or non-append code changes) trigger a full re-render
+3. **Newline Requirement**: Incremental updates are only applied when the delta starts with a newline (`\n`). This ensures we're adding new lines, not modifying existing lines.
 
-4. **Empty Line Filtering**: Shiki may generate empty line spans; these are filtered to prevent duplication
+4. **Full Re-render When Needed**: Non-incremental changes trigger a full re-render:
+   - Language change
+   - Theme change
+   - Code that doesn't start with previous code (non-append)
+   - Delta that doesn't start with newline (same-line modification)
+
+5. **Empty Line Filtering**: Shiki may generate empty line spans; these are filtered to prevent duplication
+
+#### Why Require Newline in Delta?
+
+When code is streamed without newlines (e.g., `"const a = 1"` → `"const a = 1; const b = 2"`), the delta (`"; const b = 2"`) doesn't start with a newline. If we tried to append this incrementally, Shiki would create it as a separate line, breaking the visual structure. The solution is to detect this case and do a full re-render instead.
+
+**Example of the issue:**
+```javascript
+// Streaming: "const a = 1" → "const a = 1; const b = 2"
+// Delta: "; const b = 2" (no newline at start)
+
+// If we append incrementally (WRONG):
+<span class="line">const a = 1</span>
+<span class="line">; const b = 2</span>  ← Wrong! Should be on same line
+
+// Correct (full re-render):
+<span class="line">const a = 1; const b = 2</span>  ← Right! All on one line
+```
 
 #### Benefits of True Incremental Updates
 
@@ -61,6 +84,7 @@ The implementation performs true incremental DOM manipulation:
 - **DOM Stability**: Existing nodes remain in place, preventing layout thrashing
 - **Smoother UX**: No visible flicker during streaming updates
 - **Efficient**: Only new content requires syntax highlighting
+- **Correctness**: Full re-render for same-line modifications ensures visual accuracy
 
 ## Test Coverage
 
@@ -84,11 +108,11 @@ Added comprehensive test suites:
 ## Performance Characteristics
 
 ### Current Implementation
-- **Time Complexity**: 
+- **Time Complexity**:
   - Incremental: O(k) where k is the delta length (only new code is highlighted)
   - Full render: O(n) where n is total code length
 - **Space Complexity**: O(1) additional (tracks previous state)
-- **DOM Operations**: 
+- **DOM Operations**:
   - Incremental: Appends k new nodes
   - Full render: Replaces entire DOM tree
 - **Render Guarantee**: Incremental updates produce identical visual results to full renders

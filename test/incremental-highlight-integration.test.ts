@@ -227,15 +227,11 @@ describe('incremental highlighting with Shiki integration', () => {
 
     const container = createContainerElement()
 
-    // Simulate rapid streaming updates
+    // Simulate rapid streaming updates with newlines (so they can be incremental)
     const updates = [
-      'con',
-      'const',
-      'const ',
-      'const a',
-      'const a =',
-      'const a = 1',
       'const a = 1;',
+      'const a = 1;\nconst b = 2;',
+      'const a = 1;\nconst b = 2;\nconst c = 3;',
     ]
 
     let hadIncremental = false
@@ -246,9 +242,15 @@ describe('incremental highlighting with Shiki integration', () => {
         expect(result.shouldUpdateDOM).toBe(true)
         container.innerHTML = result.html
       }
-      else if (result.wasIncremental) {
-        hadIncremental = true
-        expect(result.shouldUpdateDOM).toBe(false)
+      else {
+        if (result.wasIncremental) {
+          hadIncremental = true
+          expect(result.shouldUpdateDOM).toBe(false)
+        }
+        else if (result.shouldUpdateDOM) {
+          // If not incremental, update the DOM
+          container.innerHTML = result.html
+        }
       }
     }
 
@@ -257,6 +259,7 @@ describe('incremental highlighting with Shiki integration', () => {
 
     // Verify DOM state
     expect(container.querySelector('code')).toBeTruthy()
+    expect(container.querySelectorAll('.line').length).toBe(3)
   })
 
   it('should handle empty code gracefully', async () => {

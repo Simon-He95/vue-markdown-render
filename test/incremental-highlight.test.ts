@@ -30,7 +30,8 @@ describe('incremental highlighting utility', () => {
       const oldCode = ''
       const newCode = 'const a = 1;'
 
-      expect(isIncrementalUpdate(oldCode, newCode)).toBe(true)
+      // Empty old code means delta doesn't start with newline, so not incremental
+      expect(isIncrementalUpdate(oldCode, newCode)).toBe(false)
     })
 
     it('should detect when new code is shorter', () => {
@@ -77,28 +78,41 @@ describe('incremental highlighting utility', () => {
   })
 
   describe('streaming scenarios', () => {
-    it('should handle gradual code additions', () => {
+    it('should handle gradual code additions with complete newlines', () => {
       const { isIncrementalUpdate, getIncrementalDelta } = incrementalHighlight
 
-      // Simulate streaming: code is gradually added
+      // Simulate streaming with complete lines: only steps where delta starts with \n are incremental
       const steps = [
-        'const ',
-        'const a ',
-        'const a = ',
-        'const a = 1',
         'const a = 1;',
-        'const a = 1;\nconst ',
-        'const a = 1;\nconst b',
         'const a = 1;\nconst b = 2;',
+        'const a = 1;\nconst b = 2;\nconst c = 3;',
       ]
 
       for (let i = 1; i < steps.length; i++) {
         const oldCode = steps[i - 1]
         const newCode = steps[i]
 
+        // All these should be incremental because they add complete lines (delta starts with \n)
         expect(isIncrementalUpdate(oldCode, newCode)).toBe(true)
         const delta = getIncrementalDelta(oldCode, newCode)
         expect(oldCode + delta).toBe(newCode)
+        expect(delta.startsWith('\n')).toBe(true)
+      }
+    })
+
+    it('should reject gradual additions on same line (no newline)', () => {
+      const { isIncrementalUpdate } = incrementalHighlight
+
+      // These are NOT incremental because they modify the same line (no \n at start of delta)
+      const nonIncrementalSteps = [
+        ['const ', 'const a '],
+        ['const a ', 'const a = '],
+        ['const a = ', 'const a = 1'],
+        ['const a = 1', 'const a = 1;'],
+      ]
+
+      for (const [oldCode, newCode] of nonIncrementalSteps) {
+        expect(isIncrementalUpdate(oldCode, newCode)).toBe(false)
       }
     })
 
@@ -150,10 +164,10 @@ describe('incremental highlighting utility', () => {
   })
 
   describe('rapid updates', () => {
-    it('should handle rapid sequential updates', () => {
+    it('should reject rapid sequential updates on same line', () => {
       const { isIncrementalUpdate } = incrementalHighlight
 
-      // Simulate very fast updates
+      // These rapid updates don't have newlines, so they're NOT incremental
       const updates = [
         'c',
         'co',
@@ -167,6 +181,22 @@ describe('incremental highlighting utility', () => {
         'const a = ',
         'const a = 1',
         'const a = 1;',
+      ]
+
+      // None of these should be incremental (no newline in delta)
+      for (let i = 1; i < updates.length; i++) {
+        expect(isIncrementalUpdate(updates[i - 1], updates[i])).toBe(false)
+      }
+    })
+
+    it('should handle rapid updates with newlines', () => {
+      const { isIncrementalUpdate } = incrementalHighlight
+
+      // Rapid updates with newlines ARE incremental
+      const updates = [
+        'line1',
+        'line1\nline2',
+        'line1\nline2\nline3',
       ]
 
       for (let i = 1; i < updates.length; i++) {
@@ -191,8 +221,11 @@ describe('incremental highlighting utility', () => {
       reset()
 
       // The reset should clear previous state
-      // Next update with empty previous should still work
-      expect(isIncrementalUpdate('', 'const a = 1;')).toBe(true)
+      // Empty to non-empty is NOT incremental (no newline in delta)
+      expect(isIncrementalUpdate('', 'const a = 1;')).toBe(false)
+
+      // But adding lines with newlines IS incremental
+      expect(isIncrementalUpdate('const a = 1;', 'const a = 1;\nconst b = 2;')).toBe(true)
     })
   })
 })

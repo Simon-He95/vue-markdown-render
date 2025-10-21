@@ -14,10 +14,20 @@ export function useIncrementalHighlight() {
 
   /**
    * Check if the new code is an incremental update (appends to previous code)
+   * AND the delta starts with a newline (so it can be safely appended as new lines)
    */
   function isIncrementalUpdate(oldCode: string, newCode: string): boolean {
-    // If newCode starts with oldCode, it's an incremental addition
-    return newCode.length > oldCode.length && newCode.startsWith(oldCode)
+    // If newCode starts with oldCode, it's potentially an incremental addition
+    if (!(newCode.length > oldCode.length && newCode.startsWith(oldCode))) {
+      return false
+    }
+
+    // Extract the delta
+    const delta = newCode.slice(oldCode.length)
+
+    // Only consider it incremental if the delta starts with a newline
+    // This ensures we're adding new lines, not modifying the existing line
+    return delta.startsWith('\n')
   }
 
   /**
