@@ -141,8 +141,10 @@ if (typeof window !== 'undefined') {
       const lang = props.node.language.split(':')[0] // 支持 language:variant 形式
 
       // Use incremental highlighting
-      const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme)
-      highlightedCode.value = result.html
+      const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme, codeBlockContent.value)
+      if (result.shouldUpdateDOM) {
+        highlightedCode.value = result.html
+      }
     }
   }, { immediate: true })
 }
@@ -157,9 +159,11 @@ watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
   const theme = props.themes && props.themes.length > 0 ? (props.isDark ? props.themes[0] : props.themes[1] || props.themes[0]) : (props.isDark ? props.darkTheme || 'vitesse-dark' : props.lightTheme || 'vitesse-light')
   lang = lang.split(':')[0] // 支持 language:variant 形式
 
-  // Use incremental highlighting
-  const result = await highlightIncrementally(highlighter.value, code, lang, theme)
-  highlightedCode.value = result.html
+  // Use incremental highlighting with DOM reference
+  const result = await highlightIncrementally(highlighter.value, code, lang, theme, codeBlockContent.value)
+  if (result.shouldUpdateDOM) {
+    highlightedCode.value = result.html
+  }
 })
 
 // Watch for theme changes (dark/light mode)
@@ -170,8 +174,10 @@ watch(() => props.isDark, async () => {
   const lang = props.node.language.split(':')[0]
 
   // Use incremental highlighting (will do full re-render due to theme change)
-  const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme)
-  highlightedCode.value = result.html
+  const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme, codeBlockContent.value)
+  if (result.shouldUpdateDOM) {
+    highlightedCode.value = result.html
+  }
 })
 
 // Auto-scroll to bottom when content changes (if not expanded and auto-scroll is enabled)

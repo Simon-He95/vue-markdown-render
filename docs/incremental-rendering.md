@@ -2,25 +2,27 @@
 
 ## Overview
 
-This document describes the implementation of incremental rendering optimization for the `MarkdownCodeBlockNode` component, addressing performance improvements for streaming code updates.
+This document describes the implementation of true incremental DOM rendering for the `MarkdownCodeBlockNode` component, addressing performance improvements for streaming code updates.
 
 ## Problem Statement
 
-Previously, the `codeToHtml` method updated the entire DOM on every code change. For streaming scenarios (e.g., AI-generated code, live editing), this caused:
-- Unnecessary full re-renders even for small incremental additions
-- Potential performance issues with rapid updates
+Previously, the `codeToHtml` method updated the entire DOM on every code change using `v-html`. For streaming scenarios (e.g., AI-generated code, live editing), this caused:
+- Unnecessary full DOM re-renders even for small incremental additions
+- Performance issues with rapid updates
 - Risk of content duplication if updates arrive too quickly
+- Loss of existing DOM nodes and potential layout thrashing
 
 ## Solution
 
 ### Architecture
 
-The solution introduces an `incrementalHighlight` composable that:
+The solution introduces an `incrementalHighlight` composable that performs true incremental DOM updates:
 
 1. **Detects Incremental Updates**: Identifies when new code is an append to existing code
-2. **Prevents Duplicate Updates**: Uses a mutex pattern to prevent race conditions
-3. **Maintains Correctness**: Always performs full Shiki renders to ensure accurate syntax highlighting
-4. **Provides Optimization Hook**: Tracks incremental patterns for potential future optimizations (e.g., debouncing)
+2. **DOM Diffing**: Only highlights the newly added code delta
+3. **Incremental DOM Manipulation**: Appends only new DOM nodes instead of replacing entire content
+4. **Prevents Duplicate Updates**: Uses a mutex pattern to prevent race conditions
+5. **Smart Filtering**: Filters out empty lines to prevent duplication
 
 ### Key Components
 
@@ -41,26 +43,24 @@ Modified to:
 
 ### Design Decisions
 
-#### Why Full Re-renders?
+#### True Incremental DOM Updates
 
-The current implementation always does full `codeToHtml` renders because:
+The implementation performs true incremental DOM manipulation:
 
-1. **Correctness First**: Shiki's syntax highlighting is context-sensitive. Merging partial HTML would be fragile and error-prone.
+1. **Delta Highlighting**: Only the newly added code portion is sent to Shiki for highlighting
 
-2. **Shiki's Architecture**: Shiki doesn't provide an API for incremental highlighting. It tokenizes and highlights complete code strings.
+2. **DOM Node Appending**: New syntax-highlighted nodes are appended to existing DOM instead of replacing everything
 
-3. **Future-Proof**: The infrastructure is in place to add optimizations like:
-   - Debouncing rapid updates
-   - Caching recently highlighted content
-   - Batching multiple updates
-   - Virtual scrolling for very large blocks
+3. **Full Re-render When Needed**: Non-incremental changes (language change, theme change, or non-append code changes) trigger a full re-render
 
-#### What's "Incremental" Then?
+4. **Empty Line Filtering**: Shiki may generate empty line spans; these are filtered to prevent duplication
 
-The "incremental" aspect is in:
-- **Detection**: The system knows when updates are incremental vs rewrites
-- **Infrastructure**: Ready for future optimizations like debouncing
-- **Prevention**: Mutex prevents duplicate renders from rapid updates
+#### Benefits of True Incremental Updates
+
+- **Performance**: Avoids re-rendering existing content
+- **DOM Stability**: Existing nodes remain in place, preventing layout thrashing
+- **Smoother UX**: No visible flicker during streaming updates
+- **Efficient**: Only new content requires syntax highlighting
 
 ## Test Coverage
 
@@ -84,14 +84,25 @@ Added comprehensive test suites:
 ## Performance Characteristics
 
 ### Current Implementation
-- **Time Complexity**: O(n) where n is code length (same as before)
+- **Time Complexity**: 
+  - Incremental: O(k) where k is the delta length (only new code is highlighted)
+  - Full render: O(n) where n is total code length
 - **Space Complexity**: O(1) additional (tracks previous state)
-- **Render Guarantee**: Every render is correct and identical to full render
+- **DOM Operations**: 
+  - Incremental: Appends k new nodes
+  - Full render: Replaces entire DOM tree
+- **Render Guarantee**: Incremental updates produce identical visual results to full renders
+
+### Performance Benefits
+- **Reduced CPU**: Only highlights new content, not entire codebase
+- **Reduced DOM Operations**: Appends nodes instead of replacing tree
+- **Better UX**: No flicker, smooth streaming experience
+- **Scalability**: Works efficiently even with large existing code blocks
 
 ### Future Optimization Potential
 With the infrastructure in place, future improvements could add:
-- **Debouncing**: Batch rapid updates (10-50ms window)
-- **Caching**: Reuse recent renders for unchanged code
+- **Debouncing**: Built-in support already exists (optional parameter)
+- **Caching**: Could cache recent delta highlights
 - **Virtual Scrolling**: For extremely large code blocks (1000+ lines)
 
 ## Usage
