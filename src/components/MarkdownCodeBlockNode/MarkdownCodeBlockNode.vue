@@ -6,6 +6,7 @@ import { hideTooltip, showTooltipForAnchor } from '../../composables/useSingleto
 import { getLanguageIcon, languageMap } from '../../utils'
 import MermaidBlockNode from '../MermaidBlockNode'
 import { registerHighlight } from './highlight'
+import { useIncrementalHighlight } from './incrementalHighlight'
 
 const props = withDefaults(
   defineProps<{
@@ -127,6 +128,8 @@ const contentStyle = computed(() => {
 
 const highlighter = ref<Highlighter | null>(null)
 const highlightedCode = ref<string>('')
+const { highlightIncrementally } = useIncrementalHighlight()
+
 if (typeof window !== 'undefined') {
   watch(() => props.themes, async (newThemes) => {
     // Ensure singleton highlighter exists and optionally loads requested themes
@@ -136,7 +139,10 @@ if (typeof window !== 'undefined') {
     if (!props.loading && highlighter.value) {
       const theme = props.themes && props.themes.length > 0 ? (props.isDark ? props.themes[0] : props.themes[1] || props.themes[0]) : (props.isDark ? props.darkTheme || 'vitesse-dark' : props.lightTheme || 'vitesse-light')
       const lang = props.node.language.split(':')[0] // 支持 language:variant 形式
-      highlightedCode.value = await highlighter.value.codeToHtml(props.node.code, { lang, theme })
+
+      // Use incremental highlighting
+      const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme)
+      highlightedCode.value = result.html
     }
   }, { immediate: true })
 }
@@ -150,7 +156,22 @@ watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
     return
   const theme = props.themes && props.themes.length > 0 ? (props.isDark ? props.themes[0] : props.themes[1] || props.themes[0]) : (props.isDark ? props.darkTheme || 'vitesse-dark' : props.lightTheme || 'vitesse-light')
   lang = lang.split(':')[0] // 支持 language:variant 形式
-  highlightedCode.value = await highlighter.value.codeToHtml(code, { lang, theme })
+
+  // Use incremental highlighting
+  const result = await highlightIncrementally(highlighter.value, code, lang, theme)
+  highlightedCode.value = result.html
+})
+
+// Watch for theme changes (dark/light mode)
+watch(() => props.isDark, async () => {
+  if (!highlighter.value || !props.node.code)
+    return
+  const theme = props.themes && props.themes.length > 0 ? (props.isDark ? props.themes[0] : props.themes[1] || props.themes[0]) : (props.isDark ? props.darkTheme || 'vitesse-dark' : props.lightTheme || 'vitesse-light')
+  const lang = props.node.language.split(':')[0]
+
+  // Use incremental highlighting (will do full re-render due to theme change)
+  const result = await highlightIncrementally(highlighter.value, props.node.code, lang, theme)
+  highlightedCode.value = result.html
 })
 
 // Auto-scroll to bottom when content changes (if not expanded and auto-scroll is enabled)
