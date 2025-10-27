@@ -1,7 +1,7 @@
 {
   "name": "vue-renderer-markdown",
   "type": "module",
-  "version": "0.0.60-beta.5",
+  "version": "0.0.61-beta.0",
   "packageManager": "pnpm@10.19.0",
   "description": "Vue 3 Markdown renderer optimized for large docs: progressive Mermaid, streaming diff code blocks, and fast real-time preview.",
   "author": "Simon He",
