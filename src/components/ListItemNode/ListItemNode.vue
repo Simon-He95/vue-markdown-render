@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import NodeRenderer from '../NodeRenderer'
 
 // 节点子元素类型
@@ -15,19 +16,28 @@ interface ListItem {
   raw: string
 }
 
-defineProps<{
+const props = defineProps<{
   item: ListItem
   indexKey?: number | string
+  value?: number
 }>()
 
 defineEmits<{
   copy: [text: string]
 }>()
+
+const liValueAttr = computed(() =>
+  props.value == null ? {} : { value: props.value },
+)
 </script>
 
 <template>
-  <li class="list-item pl-1.5 my-2" dir="auto">
-    <NodeRenderer :index-key="`list-item-${indexKey}`" :nodes="item.children" @copy="$emit('copy', $event)" />
+  <li class="list-item pl-1.5 my-2" dir="auto" v-bind="liValueAttr">
+    <NodeRenderer
+      :index-key="`list-item-${props.indexKey}`"
+      :nodes="props.item.children"
+      @copy="$emit('copy', $event)"
+    />
   </li>
 </template>
 
