@@ -193,26 +193,6 @@ export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
 
         if (!text)
           return
-        // const strongMatch = text.match(/^(\*+)([^*]+)(\**)/)
-        // if (strongMatch) {
-        //   const strongToken = state.push('strong_open', '', 0)
-        //   strongToken.markup = strongMatch[1]
-        //   const strongTextToken = state.push('text', '', 0)
-        //   // guard against unexpected undefined values
-        //   strongTextToken.content = strongMatch[2] == null ? '' : String(strongMatch[2])
-        //   const strongCloseToken = state.push('strong_close', '', 0)
-        //   strongCloseToken.markup = strongMatch[1]
-        //   if (!strongMatch[3])
-        //     return
-        //   text = text.slice(strongMatch[0].length)
-        //   if (text) {
-        //     const t = state.push('text', '', 0)
-        //     t.content = text
-        //   }
-        //   state.pos = state.src.length
-        //   searchPos = state.pos
-        //   return
-        // }
 
         const t = s.push('text', '', 0)
         t.content = text
@@ -304,12 +284,6 @@ export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
           // If we already consumed some content, avoid duplicating the prefix
           // Only push the portion from previous search position
           const prevConsumed = src.slice(0, searchPos)
-          // Determine whether there's an unclosed strong opener (**) or (__)
-          // before this math delimiter. We only want to treat a prefix as a
-          // strong-open when the number of unescaped strong markers in the
-          // preceding segment is odd (i.e. there's an unmatched opener). This
-          // avoids treating a fully paired `**bold**` as an open prefix.
-
           let toPushBefore = prevConsumed ? src.slice(preMathPos, index) : before
           const isStrongPrefix = countUnescapedStrong(toPushBefore) % 2 === 1
           if (index !== s.pos && isStrongPrefix) {
