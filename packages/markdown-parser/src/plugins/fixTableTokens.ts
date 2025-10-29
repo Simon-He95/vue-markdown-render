@@ -1,4 +1,24 @@
+import type MarkdownIt from 'markdown-it'
 import type { MarkdownToken } from '../types'
+
+export function applyFixTableTokens(md: MarkdownIt) {
+  // Run after block parsing so block-level tokens (including inline
+  // children) are present. We replace the token array with the
+  // fixed version returned by `fixTableTokens`.
+  md.core.ruler.after('block', 'fix_table_tokens', (state: unknown) => {
+    const s = state as unknown as { tokens?: any[] }
+    try {
+      const toks = s.tokens ?? []
+      const fixed = fixTableTokens(toks)
+      if (Array.isArray(fixed))
+        s.tokens = fixed
+    }
+    catch (e) {
+      // swallow errors to avoid breaking parsing; keep original tokens
+      console.error('[applyFixTableTokens] failed to fix table tokens', e)
+    }
+  })
+}
 
 function createStart() {
   return [

@@ -1,6 +1,30 @@
-import type { MarkdownToken } from '../../types'
+import type MarkdownIt from 'markdown-it'
+import type { MarkdownToken } from 'stream-markdown-parser'
 
-export function fixStrongTokens(tokens: MarkdownToken[]): MarkdownToken[] {
+export function applyFixStrongTokens(md: MarkdownIt) {
+  // Run after inline tokenization to normalize strong/em tokens in
+  // each inline token's children. This ensures downstream inline
+  // parsers receive a normalized token list.
+  md.core.ruler.after('inline', 'fix_strong_tokens', (state: unknown) => {
+    const s = state as unknown as { tokens?: Array<{ type?: string, children?: any[] }> }
+    const toks = s.tokens ?? []
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i]
+      if (t && t.type === 'inline' && Array.isArray(t.children)) {
+        try {
+          t.children = fixStrongTokens(t.children)
+        }
+        catch (e) {
+          // don't break parsing on plugin error
+
+          console.error('[applyFixStrongTokens] failed to fix inline children', e)
+        }
+      }
+    }
+  })
+}
+
+function fixStrongTokens(tokens: MarkdownToken[]): MarkdownToken[] {
   const fixedTokens = [...tokens]
   if (tokens.length < 4)
     return fixedTokens

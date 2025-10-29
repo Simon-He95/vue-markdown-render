@@ -3,9 +3,6 @@ import { parseCheckboxInputToken, parseCheckboxToken } from './checkbox-parser'
 import { parseEmojiToken } from './emoji-parser'
 import { parseEmphasisToken } from './emphasis-parser'
 import { parseFenceToken } from './fence-parser'
-import { fixLinkToken } from './fixLinkToken'
-import { fixListItem } from './fixListItem'
-import { fixStrongTokens } from './fixStrongTokens'
 import { parseFootnoteRefToken } from './footnote-ref-parser'
 import { parseHardbreakToken } from './hardbreak-parser'
 import { parseHighlightToken } from './highlight-parser'
@@ -30,9 +27,10 @@ export function parseInlineTokens(tokens: MarkdownToken[], raw?: string, pPreTok
   let currentTextNode: TextNode | null = null
 
   let i = 0
-  tokens = fixStrongTokens(tokens)
-  tokens = fixListItem(tokens)
-  tokens = fixLinkToken(tokens)
+  // Note: strong-token normalization and list-item normalization are
+  // applied during markdown-it parsing via core rules (plugins that
+  // run after 'inline'). Inline parsers should receive normalized
+  // children and only focus on parsing.
 
   // Helpers to manage text node merging and pushing parsed nodes
   function resetCurrentTextNode() {
@@ -560,8 +558,40 @@ export function parseInlineTokens(tokens: MarkdownToken[], raw?: string, pPreTok
     }
     const { node, nextIndex } = parseLinkToken(tokens, i)
     i = nextIndex
-
-    node.loading = false
+    // Determine loading state conservatively: if the link token parser
+    // marked it as loading already, keep it; otherwise compute from raw
+    // and href as a fallback so unclosed links remain marked as loading.
+    const hrefAttr = token.attrs?.find(([name]) => name === 'href')?.[1]
+    const hrefStr = String(hrefAttr ?? '')
+    // Only override the link parser's default loading state when we
+    // actually have an href to check against the raw source. If the
+    // tokenizer emitted a link_open without an href (partial tokenizers
+    // may do this), prefer the parseLinkToken's initial loading value
+    // (which defaults to true for mid-state links).
+    if (raw && hrefStr) {
+    // More robust: locate the first "](" after the link text and see if
+    // there's a matching ')' that closes the href. This avoids false
+    // positives when other parentheses appear elsewhere in the source.
+      const openIdx = raw.indexOf('](')
+      if (openIdx === -1) {
+      // No explicit link start found in raw — be conservative and keep
+      // the parser's default loading value.
+      }
+      else {
+        const closeIdx = raw.indexOf(')', openIdx + 2)
+        if (closeIdx === -1) {
+          node.loading = true
+        }
+        else {
+        // Check that the href inside the parens corresponds to this token
+          const inside = raw.slice(openIdx + 2, closeIdx)
+          if (inside.includes(hrefStr))
+            node.loading = false
+          else
+            node.loading = true
+        }
+      }
+    }
     pushParsed(node)
   }
 

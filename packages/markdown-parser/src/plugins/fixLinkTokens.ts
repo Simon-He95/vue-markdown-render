@@ -1,12 +1,39 @@
-import type { MarkdownToken } from '../../types'
+import type MarkdownIt from 'markdown-it'
+import type { MarkdownToken } from '../types'
+
+export function applyFixLinkTokens(md: MarkdownIt) {
+  // Run after the inline rule so markdown-it has produced inline tokens
+  // for block-level tokens; we then adjust each inline token's children
+  // so downstream code receives corrected token arrays during the same
+  // parsing pass.
+  md.core.ruler.after('inline', 'fix_link_tokens', (state: unknown) => {
+    const s = state as unknown as { tokens?: Array<{ type?: string, children?: any[] }> }
+    const toks = s.tokens ?? []
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i]
+      if (t && t.type === 'inline' && Array.isArray(t.children)) {
+        try {
+          t.children = fixLinkToken(t.children)
+        }
+        catch (e) {
+          // Swallow errors to avoid breaking parsing; keep original children
+          // so parse still succeeds even if our fix fails for an unexpected shape.
+          // Errors should be rare and indicate malformed token arrays.
+
+          console.error('[applyFixLinkTokens] failed to fix inline children', e)
+        }
+      }
+    }
+  })
+}
 
 // narrow helper to reduce non-null assertions on text tokens
 function isTextToken(t?: MarkdownToken): t is MarkdownToken & { type: 'text', content: string } {
   return !!t && t.type === 'text' && typeof (t as any).content === 'string'
 }
 
-export function fixLinkToken(tokens: MarkdownToken[]): MarkdownToken[] {
-  const tokensAny = tokens as unknown as import('../../types').MarkdownToken[]
+function fixLinkToken(tokens: MarkdownToken[]): MarkdownToken[] {
+  const tokensAny = tokens as unknown as MarkdownToken[]
   tokens = fixLinkToken4(fixLinkToken3(tokens))
   if (tokens.length < 5)
     return tokens
@@ -50,8 +77,8 @@ export function fixLinkToken(tokens: MarkdownToken[]): MarkdownToken[] {
   return tokens
 }
 
-export function fixLinkTokens2(tokens: MarkdownToken[]): MarkdownToken[] {
-  const tokensAny = tokens as unknown as import('../../types').MarkdownToken[]
+function fixLinkTokens2(tokens: MarkdownToken[]): MarkdownToken[] {
+  const tokensAny = tokens as unknown as MarkdownToken[]
   if (tokens.length < 8)
     return tokens
   let length = tokens.length
@@ -98,8 +125,8 @@ export function fixLinkTokens2(tokens: MarkdownToken[]): MarkdownToken[] {
   return tokens
 }
 
-export function fixLinkToken3(tokens: MarkdownToken[]): MarkdownToken[] {
-  const tokensAny = tokens as unknown as import('../../types').MarkdownToken[]
+function fixLinkToken3(tokens: MarkdownToken[]): MarkdownToken[] {
+  const tokensAny = tokens as unknown as MarkdownToken[]
   const last = tokens[tokens.length - 1]
   const preLast = tokens[tokens.length - 2]
   const fixedTokens = [...tokens]
@@ -128,8 +155,8 @@ export function fixLinkToken3(tokens: MarkdownToken[]): MarkdownToken[] {
   return fixedTokens
 }
 
-export function fixLinkToken4(tokens: MarkdownToken[]): MarkdownToken[] {
-  const tokensAny = tokens as unknown as import('../../types').MarkdownToken[]
+function fixLinkToken4(tokens: MarkdownToken[]): MarkdownToken[] {
+  const tokensAny = tokens as unknown as MarkdownToken[]
   const fixedTokens = [...tokens]
   for (let i = tokens.length - 1; i >= 3; i--) {
     const token = tokens[i]

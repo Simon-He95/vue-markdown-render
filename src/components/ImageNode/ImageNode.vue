@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   usePlaceholder?: boolean
 }>(), {
   fallbackSrc: '',
-  showCaption: true,
+  showCaption: false,
   lazy: true,
   svgMinHeight: '12rem',
   usePlaceholder: true,

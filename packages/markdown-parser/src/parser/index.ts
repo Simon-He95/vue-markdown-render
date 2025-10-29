@@ -1,6 +1,5 @@
 import type MarkdownIt from 'markdown-it'
 import type { MarkdownToken, ParsedNode, ParseOptions } from '../types'
-import { fixTableTokens } from './fixTableTokens'
 import { parseInlineTokens } from './inline-parsers'
 import { parseFenceToken } from './inline-parsers/fence-parser'
 import { parseAdmonition } from './node-parsers/admonition-parser'
@@ -49,6 +48,7 @@ export function parseMarkdownToStructure(
   if (pre && typeof pre === 'function') {
     transformedTokens = pre(tokens) || tokens
   }
+
   // Process the tokens into our structured format
   let result = processTokens(transformedTokens)
 
@@ -81,7 +81,11 @@ export function processTokens(tokens: MarkdownToken[]): ParsedNode[] {
 
   const result: ParsedNode[] = []
   let i = 0
-  tokens = fixTableTokens(tokens)
+  // Note: table token normalization is applied during markdown-it parsing
+  // via the `applyFixTableTokens` plugin (core.ruler.after('block')).
+  // Link/strong/list-item fixes are applied during the inline stage by
+  // their respective plugins. That keeps parsing-time fixes centralized
+  // and avoids ad-hoc post-processing here.
   while (i < tokens.length) {
     const token = tokens[i]
     switch (token.type) {

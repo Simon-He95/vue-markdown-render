@@ -247,7 +247,7 @@ exports[`markdownRender node e2e coverage > renders image node 1`] = `
           <!-- 包裹条件渲染元素，启用 out-in 模式以在替换时做平滑过渡 -->
           <transition-stub data-v-4ff2ac62="" name="img-switch" mode="out-in" appear="false" persisted="false" css="true"><img data-v-4ff2ac62="" src="https://example.com/vue.png" alt="Vue Logo" title="Vue Logo" class="max-w-96 h-auto rounded-lg transition-opacity duration-200 ease-in-out opacity-0" loading="lazy" decoding="async"></transition-stub>
         </div>
-        <figcaption data-v-4ff2ac62="" class="mt-2 text-sm text-gray-500 italic">Vue Logo</figcaption>
+        <!--v-if-->
       </figure>
       </p>
     </transition-stub>

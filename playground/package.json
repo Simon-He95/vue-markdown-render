@@ -24,7 +24,7 @@
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
-    "@types/node": "^20.19.23",
+    "@types/node": "^20.19.24",
     "@unocss/reset": "^0.61.9",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.38.0",
