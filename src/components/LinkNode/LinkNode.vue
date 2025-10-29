@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue'
+import { hideTooltip, showTooltipForAnchor } from '../../composables/useSingletonTooltip'
 import EmphasisNode from '../EmphasisNode/EmphasisNode.vue'
 import StrikethroughNode from '../StrikethroughNode'
 import StrongNode from '../StrongNode'
@@ -17,10 +18,12 @@ interface LinkNode {
 }
 
 // 接收props — 把动画/颜色相关配置暴露为props，并通过CSS变量注入样式
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   node: LinkNode
   indexKey: number | string
   customId?: string
+  /** whether to show the custom singleton tooltip on hover/focus. Default: true */
+  showTooltip?: boolean
   /** link text / underline color (CSS color string) */
   color?: string
   /** underline height in px */
@@ -35,7 +38,9 @@ const props = defineProps<{
   animationTiming?: string
   /** animation iteration (e.g. 'infinite' or a number) */
   animationIteration?: string | number
-}>()
+}>(), {
+  showTooltip: true,
+})
 
 const cssVars = computed(() => {
   const bottom = props.underlineBottom !== undefined
@@ -63,6 +68,23 @@ const nodeComponents = {
 
 // forward any non-prop attributes (e.g. custom-id) to the rendered element
 const attrs = useAttrs()
+
+// Tooltip handlers using singleton tooltip
+function onAnchorEnter(e: Event) {
+  if (!props.showTooltip)
+    return
+  const ev = e as MouseEvent
+  const origin = ev?.clientX != null && ev?.clientY != null ? { x: ev.clientX, y: ev.clientY } : undefined
+  // show the link href in tooltip; fall back to title/text if href missing
+  const txt = props.node?.href ?? props.node?.title ?? props.node?.text ?? ''
+  showTooltipForAnchor(e.currentTarget as HTMLElement, txt, 'top', false, origin)
+}
+
+function onAnchorLeave() {
+  if (!props.showTooltip)
+    return
+  hideTooltip()
+}
 </script>
 
 <template>
@@ -70,12 +92,15 @@ const attrs = useAttrs()
     v-if="!node.loading"
     class="link-node"
     :href="node.href"
-    :title="String(node.title ?? '')"
+    :title="!props.showTooltip ? String(node.href ?? node.title ?? '') : undefined"
+    :aria-label="`Link: ${node.href ?? node.title ?? node.text}`"
     :aria-hidden="node.loading ? 'true' : 'false'"
     target="_blank"
     rel="noopener noreferrer"
     v-bind="attrs"
     :style="cssVars"
+    @mouseenter="(e) => onAnchorEnter(e)"
+    @mouseleave="onAnchorLeave"
   >
     <component
       :is="nodeComponents[child.type]"
