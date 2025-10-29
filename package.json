@@ -76,7 +76,7 @@
     "katex": ">=0.16.22",
     "mermaid": ">=11",
     "shiki": "^3.13.0",
-    "stream-markdown": ">=0.0.5",
+    "stream-markdown": ">=0.0.6",
     "stream-monaco": ">=0.0.2",
     "vue": ">=3.0.0",
     "vue-i18n": ">=9"
@@ -103,7 +103,7 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.4",
-    "stream-markdown-parser": "^0.0.9"
+    "stream-markdown-parser": "^0.0.10"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.4.1",

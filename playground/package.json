@@ -15,7 +15,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@vueuse/core": "^13.9.0",
     "katex": "^0.16.25",
-    "stream-markdown": "^0.0.5",
+    "stream-markdown": "^0.0.6",
     "stream-monaco": "^0.0.2",
     "vite": "^7.1.12",
     "vue": "^3.5.22",

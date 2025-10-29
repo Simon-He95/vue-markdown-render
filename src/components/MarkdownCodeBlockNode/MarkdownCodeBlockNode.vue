@@ -168,6 +168,10 @@ async function initRenderer() {
     theme: getPreferredColorScheme(),
     themes: props.themes,
   })
+  if (!props.loading) {
+    const lang = codeLanguage.value.split(':')[0].toLocaleLowerCase().trim() // 支持 language:variant 形式
+    renderer.updateCode(props.node.code, lang)
+  }
 }
 onMounted(async () => {
   await initRenderer()
@@ -175,7 +179,7 @@ onMounted(async () => {
 
 watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
   if (lang !== codeLanguage.value)
-    codeLanguage.value = lang
+    codeLanguage.value = lang.trim()
   if (!codeBlockContent.value)
     return
   if (isMermaid.value)
@@ -189,7 +193,7 @@ watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
   if (props.stream === false && props.loading)
     return
 
-  lang = lang.split(':')[0] // 支持 language:variant 形式
+  lang = lang.split(':')[0].toLocaleLowerCase().trim() // 支持 language:variant 形式
   renderer.updateCode(code, lang)
 })
 

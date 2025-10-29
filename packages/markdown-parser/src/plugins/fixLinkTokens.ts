@@ -83,6 +83,8 @@ function fixLinkTokens2(tokens: MarkdownToken[]): MarkdownToken[] {
     return tokens
   let length = tokens.length
   let last = tokens[length - 1]
+  if (!last)
+    return tokens
   if (last.type !== 'link_close') {
     length--
     last = tokens[length - 1]
@@ -130,6 +132,9 @@ function fixLinkToken3(tokens: MarkdownToken[]): MarkdownToken[] {
   const last = tokens[tokens.length - 1]
   const preLast = tokens[tokens.length - 2]
   const fixedTokens = [...tokens]
+  if (!last)
+    return tokens
+
   if (last.type !== 'text' || !(last as unknown as { content?: string }).content?.startsWith(')')) {
     return tokens
   }
@@ -160,11 +165,11 @@ function fixLinkToken4(tokens: MarkdownToken[]): MarkdownToken[] {
   const fixedTokens = [...tokens]
   for (let i = tokens.length - 1; i >= 3; i--) {
     const token = tokens[i]
-    if (token.type === 'link_close') {
+    if (token && token.type === 'link_close') {
       if (tokens[i - 3]?.content?.endsWith('(')) {
         const nextToken = tokens[i + 1]
-        if (nextToken?.type === 'text') {
-          if (tokens[i - 1].type === 'text' && tokens[i - 3].type === 'text') {
+        if (nextToken && nextToken?.type === 'text') {
+          if (tokens[i - 1].type === 'text' && tokens[i - 3]?.type === 'text') {
             const nextTokenContent = String((nextToken as unknown as { content?: string }).content ?? '')
             const a = tokensAny[i - 3] as unknown as { content?: string }
             const b = tokensAny[i - 1] as unknown as { content?: string }
@@ -178,7 +183,7 @@ function fixLinkToken4(tokens: MarkdownToken[]): MarkdownToken[] {
           }
         }
         else {
-          if (tokens[i - 1].type === 'text' && tokens[i - 3].type === 'text') {
+          if (tokens[i - 1].type === 'text' && tokens[i - 3]?.type === 'text') {
             const a = tokensAny[i - 3] as unknown as { content?: string }
             const b = tokensAny[i - 1] as unknown as { content?: string }
             const content = String(a.content ?? '') + String(b.content ?? '')
