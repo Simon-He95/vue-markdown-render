@@ -65,10 +65,9 @@ These features make the library especially suited for real-time, AI-driven, and 
 
 This short video introduces the vue-renderer-markdown component library and highlights key features and usage patterns.
 
-[![Watch the intro on Bilibili](https://i1.hdslb.com/bfs/archive/f073718bd0e51acaea436d7197880478213113c6.jpg)](https://www.bilibili.com/video/BV17Z4qzpE9c/)
+[![Watch the intro on YouTube](https://i1.hdslb.com/bfs/archive/f073718bd0e51acaea436d7197880478213113c6.jpg)](https://youtu.be/qUggGP5bWNw)
 
-Watch the intro on Bilibili: [Open in Bilibili](https://www.bilibili.com/video/BV17Z4qzpE9c/)
-
+Watch the intro on YouTube: [Open in YouTube](https://youtu.be/qUggGP5bWNw)
 
 ## Features
 
@@ -890,7 +889,6 @@ Notes:
   ```ts
   import type { MyMarkdownProps } from 'vue-renderer-markdown/dist/types'
   ```
-
 
 ## Vite Configuration & Worker Usage (Important!)
 

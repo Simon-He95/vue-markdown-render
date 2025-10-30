@@ -239,10 +239,10 @@ setDefaultMathOptions({ commands: ['infty', 'perp'], escapeExclamation: true })
 
 ```ts
 // 翻译映射
-const md = getMarkdown('editor-1', { i18n: { 'common.copy': '复制' } })
-
 // 翻译函数（例如使用 vue-i18n）
 import { useI18n } from 'vue-i18n'
+
+const md = getMarkdown('editor-1', { i18n: { 'common.copy': '复制' } })
 const { t } = useI18n()
 const md2 = getMarkdown('editor-1', { i18n: (key: string) => t(key) })
 ```
@@ -274,9 +274,9 @@ This is **bold** and this is *italic*.
 - List item 1
 - List item 2
 
-```javascript
+\`\`\`javascript
 console.log('Code block!')
-```
+\`\`\`
 `
 </script>
 
@@ -425,10 +425,10 @@ export default defineConfig({
 import KatexWorker from 'vue-renderer-markdown/workers/katexRenderer.worker?worker'
 import { setKaTeXWorker } from 'vue-renderer-markdown/workers/katexWorkerClient'
 
-setKaTeXWorker(new KatexWorker())
-
 import MermaidWorker from 'vue-renderer-markdown/workers/mermaidParser.worker?worker'
 import { setMermaidWorker } from 'vue-renderer-markdown/workers/mermaidWorkerClient'
+
+setKaTeXWorker(new KatexWorker())
 
 setMermaidWorker(new MermaidWorker())
 ```
@@ -465,6 +465,7 @@ setMermaidWorker(new MermaidWorker())
 
 ```ts
 import { getUseMonaco } from './src/components/CodeBlockNode/monaco'
+
 getUseMonaco()
 ```
 
