@@ -136,18 +136,31 @@ function getPreferredColorScheme() {
 interface ShikiRenderer {
   updateCode: (code: string, lang?: string) => void
   setTheme: (theme?: string) => void
+  dispose: () => void
 }
 let renderer: ShikiRenderer | undefined
 let createShikiRenderer:
   | ((el: HTMLElement, opts: { theme?: string | undefined, themes?: string[] | undefined }) => ShikiRenderer)
   | undefined
 
+let registerHighlight
+let disposeHighlighter = () => {}
 async function ensureStreamMarkdownLoaded() {
   if (createShikiRenderer)
     return
   try {
     const mod = await import('stream-markdown')
     createShikiRenderer = mod.createShikiStreamRenderer
+    registerHighlight = mod.registerHighlight
+    disposeHighlighter = mod.disposeHighlighter
+    registerHighlight({ themes: props.themes })
+    renderer = createShikiRenderer(codeBlockContent.value, {
+      theme: getPreferredColorScheme(),
+    })
+    if (!props.loading) {
+      const lang = codeLanguage.value.split(':')[0].toLocaleLowerCase().trim() // 支持 language:variant 形式
+      renderer.updateCode(props.node.code, lang)
+    }
   }
   catch (e) {
     // stream-markdown is an optional peer; if missing, silently skip highlighting
@@ -156,25 +169,21 @@ async function ensureStreamMarkdownLoaded() {
 }
 
 async function initRenderer() {
-  // Do not initialize Shiki renderer for Mermaid blocks
-  if (isMermaid.value)
+  if (isMermaid.value) {
+    disposeHighlighter()
+    renderer?.dispose()
     return
-  if (!codeBlockContent.value)
-    return
-  await ensureStreamMarkdownLoaded()
-  if (!createShikiRenderer)
-    return
-  renderer = createShikiRenderer(codeBlockContent.value, {
-    theme: getPreferredColorScheme(),
-    themes: props.themes,
-  })
-  if (!props.loading) {
-    const lang = codeLanguage.value.split(':')[0].toLocaleLowerCase().trim() // 支持 language:variant 形式
-    renderer.updateCode(props.node.code, lang)
   }
+  ensureStreamMarkdownLoaded()
 }
-onMounted(async () => {
-  await initRenderer()
+initRenderer()
+onMounted(() => {
+  initRenderer()
+})
+
+watch(() => props.themes, async () => {
+  if (registerHighlight)
+    registerHighlight({ themes: props.themes })
 })
 
 watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
@@ -182,8 +191,11 @@ watch(() => [props.node.code, props.node.language], async ([code, lang]) => {
     codeLanguage.value = lang.trim()
   if (!codeBlockContent.value)
     return
-  if (isMermaid.value)
+  if (isMermaid.value) {
+    disposeHighlighter()
+    renderer?.dispose()
     return
+  }
 
   if (!renderer)
     await initRenderer()
@@ -203,13 +215,12 @@ const watchTheme = watch(
     if (!codeBlockContent.value)
       return
     if (isMermaid.value) {
+      disposeHighlighter()
+      renderer?.dispose()
       return watchTheme()
     }
     if (!renderer)
       await initRenderer()
-    if (isMermaid.value) {
-      return watchTheme()
-    }
     renderer?.setTheme(getPreferredColorScheme())
   },
 )
