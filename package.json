@@ -109,7 +109,7 @@
     "@antfu/eslint-config": "^5.4.1",
     "@types/node": "^18.19.130",
     "@vitejs/plugin-vue": "^5.2.4",
-    "@vitest/ui": "^4.0.4",
+    "@vitest/ui": "^4.0.5",
     "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.21",
     "bumpp": "^8.2.1",
@@ -129,7 +129,7 @@
     "vite-plugin-dts": "^4.5.4",
     "vite-plugin-pages": "^0.33.1",
     "vite-svg-loader": "^5.1.0",
-    "vitest": "^4.0.4",
+    "vitest": "^4.0.5",
     "vue": "^3.5.22",
     "vue-tsc": "^2.2.12"
   },
