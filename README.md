@@ -61,6 +61,15 @@ These features make the library especially suited for real-time, AI-driven, and 
 - [Streaming playground](https://vue-markdown-renderer.simonhe.me/) — try large Markdown files and progressive diagrams to feel the difference.
 - [Markdown vs v-html comparison](https://vue-markdown-renderer.simonhe.me/markdown) — contrast the library's reactive rendering with a traditional static pipeline.
 
+### Intro Video
+
+This short video introduces the vue-renderer-markdown component library and highlights key features and usage patterns.
+
+[![Watch the intro on Bilibili](https://i1.hdslb.com/bfs/archive/f073718bd0e51acaea436d7197880478213113c6.jpg)](https://www.bilibili.com/video/BV17Z4qzpE9c/)
+
+Watch the intro on Bilibili: [Open in Bilibili](https://www.bilibili.com/video/BV17Z4qzpE9c/)
+
+
 ## Features
 
 - ⚡ **Ultra-High Performance**: Optimized for real-time streaming with minimal re-renders and efficient DOM updates
@@ -882,6 +891,42 @@ Notes:
   import type { MyMarkdownProps } from 'vue-renderer-markdown/dist/types'
   ```
 
+
+## Vite Configuration & Worker Usage (Important!)
+
+If you're using Vite, you only need the following minimal configuration:
+
+```typescript
+import vue from '@vitejs/plugin-vue'
+// vite.config.ts
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [vue()],
+  worker: {
+    format: 'es',
+  },
+})
+```
+
+## Using Web Workers for KaTeX and Mermaid (Important!)
+
+You must import the worker using Vite's `?worker` syntax and inject it into the library via the API:
+
+```ts
+// main.ts or your app entry
+import KatexWorker from 'vue-renderer-markdown/workers/katexRenderer.worker?worker'
+import { setKaTeXWorker } from 'vue-renderer-markdown/workers/katexWorkerClient'
+
+// For Mermaid:
+import MermaidWorker from 'vue-renderer-markdown/workers/mermaidParser.worker?worker'
+import { setMermaidWorker } from 'vue-renderer-markdown/workers/mermaidWorkerClient'
+
+setKaTeXWorker(new KatexWorker())
+
+setMermaidWorker(new MermaidWorker())
+```
+
 ### ImageNode slots (placeholder / error)
 
 `ImageNode` now supports two named slots so you can customize the loading and error states:
@@ -1570,42 +1615,3 @@ Thanks to the authors and contributors of these projects!
 ## License
 
 [MIT](./LICENSE) © [Simon He](https://github.com/Simon-He95)
-
-## Vite Configuration & Worker Usage (Important!)
-
-If you're using Vite, you only need the following minimal configuration:
-
-```typescript
-import vue from '@vitejs/plugin-vue'
-// vite.config.ts
-import { defineConfig } from 'vite'
-
-export default defineConfig({
-  plugins: [vue()],
-  worker: {
-    format: 'es',
-  },
-})
-```
-
-> **Why?** You now manually import and set workers via API, so Vite's optimizeDeps is not needed for worker files. This avoids pre-bundling issues and makes configuration simpler.
-
-#### How to use workers in your app (Vite example)
-
-You must import the worker using Vite's `?worker` syntax and inject it into the library via the API:
-
-```ts
-// main.ts or your app entry
-import KatexWorker from 'vue-renderer-markdown/workers/katexRenderer.worker?worker'
-import { setKaTeXWorker } from 'vue-renderer-markdown/workers/katexWorkerClient'
-
-// For Mermaid:
-import MermaidWorker from 'vue-renderer-markdown/workers/mermaidParser.worker?worker'
-import { setMermaidWorker } from 'vue-renderer-markdown/workers/mermaidWorkerClient'
-
-setKaTeXWorker(new KatexWorker())
-
-setMermaidWorker(new MermaidWorker())
-```
-
-> You do **not** need to pass the worker via component props. Just call the API once in your app entry before using Markdown components.

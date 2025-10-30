@@ -1,112 +1,265 @@
 # vue-renderer-markdown
 
-> Vue 3 的高速 Markdown 渲染器，针对大文档、流式内容和实时预览做了深度优化。
+> 针对 Vue 3 的高性能、流式友好型 Markdown 渲染组件 — 支持渐进式 Mermaid、流式 diff 代码块以及为大文档优化的实时预览。
 
 [![NPM version](https://img.shields.io/npm/v/vue-renderer-markdown?color=a1b858&label=)](https://www.npmjs.com/package/vue-renderer-markdown)
-[![English Docs](https://img.shields.io/badge/docs-English-blue)](README.md)
+[![中文版](https://img.shields.io/badge/docs-中文文档-blue)](README.zh-CN.md)
 [![NPM downloads](https://img.shields.io/npm/dm/vue-renderer-markdown)](https://www.npmjs.com/package/vue-renderer-markdown)
 [![Bundle size](https://img.shields.io/bundlephobia/minzip/vue-renderer-markdown)](https://bundlephobia.com/package/vue-renderer-markdown)
 [![License](https://img.shields.io/npm/l/vue-renderer-markdown)](./LICENSE)
 
 ## 目录
 
-- [特性亮点](#特性亮点)
+- [为什么使用它？](#为什么使用它)
+- [与传统 Markdown 渲染器的区别](#与传统-markdown-渲染器的区别)
+- [实时演示](#-实时演示)
+- [特性](#特性)
 - [安装](#安装)
+  - [Peer 依赖](#peer-依赖)
+- [服务端渲染（SSR）](#服务端渲染ssr)
+- [数学公式渲染选项](#数学公式渲染选项)
 - [快速开始](#快速开始)
-- [代码块模式](#代码块模式)
+  - [选择代码块渲染风格](#选择代码块渲染风格)
 - [TypeScript 使用](#typescript-使用)
-- [SSR 指南](#ssr-指南)
+- [为何选择 vue-renderer-markdown？](#为何选择-vue-renderer-markdown)
+- [用法示例](#用法示例)
+- [性能特性](#性能特性)
+- [性能建议](#性能建议)
+  - [组件 Props](#组件-props)
+- [新属性：`renderCodeBlocksAsPre`](#新属性-rendercodeblocksaspre)
+- [高级定制](#高级定制)
+- [Monaco 集成](#monaco-集成)
+- [代码块头部自定义](#代码块头部自定义)
+- [Mermaid：渐进式渲染示例](#mermaid渐进式渲染示例)
+- [Tailwind（例如 shadcn）——样式顺序问题处理](#tailwind-eg-shadcn--fix-style-ordering-issues)
 - [故障排查](#故障排查)
-- [性能优化建议](#性能优化建议)
-- [相关链接](#相关链接)
-- [许可协议](#许可协议)
+- [鸣谢](#鸣谢)
+- [Star 历史](#star-历史)
+- [许可](#许可)
 
-## 特性亮点
+## 为什么使用它？
 
-- ⚡ **极致性能**：渲染和 DOM 更新针对流式内容做了优化
-- 🌊 **流式优先**：支持不完整 Markdown、渐进式渲染
-- 🧠 **Monaco 增量更新**：大体量代码块也能保持丝滑交互
-- 🪄 **Mermaid 渐进式渲染**：语法一旦正确立即展示
-- 🧩 **自定义节点组件**：可无缝接入自有 Vue 组件
-- 📝 **完整 Markdown 支持**：表格、数学公式、Emoji、复选框等全覆盖
-- 🔄 **实时更新**：局部变更不会破坏格式
-- 📦 **TypeScript 优先**：提供完整类型提示
-- 🔌 **零配置上手**：默认即可用于任意 Vue 3 项目
+- 渐进式 Mermaid：图表在语法达到可渲染状态时会立即显示，随后逐步完善，用户能更早看到结果。
+- 流式 diff 代码块：代码差异随输入逐步更新，适合显示实时编辑或 AI 生成的逐步更改。
+- 为大文档和实时场景优化：尽量减少 DOM 更新与内存占用，保持界面流畅。
+
+## 与传统 Markdown 渲染器的区别
+
+传统渲染器通常把完整的 Markdown 字符串转为静态 HTML 树。本库面向流式与交互式场景，提供若干传统渲染器没有的能力：
+
+- 流式优先：支持对不完整或增量产生的 Markdown 进行局部渲染，而无需对整个文档重复解析。适用于 AI 输出或逐字符/逐 token 产生内容的编辑器。
+- 流式感知的代码块与“跳转到”体验：大代码块可增量更新，渲染器能保持光标/选区上下文和细粒度编辑，提升代码编辑体验。
+- 内置 diff/流式代码组件：支持按行或按 token 展示差异，最小化回流，适合实时代码审查或 AI 编辑场景。
+- 渐进式图表与编辑器：Mermaid 与基于 Monaco 的预览会在语法有效时尽快渲染并在后续增量更新中完善效果。
+- 灵活的代码块渲染：可选 Monaco 编辑器（完全交互）或轻量的 Shiki 高亮（只读场景）。
+- 平滑交互：针对大文档优化以减少 DOM churn，保证交互体验（流式 diff、增量图表更新、编辑器集成）。
+
+这些能力使本库特别适用于实时、AI 驱动或大文档场景，在这些场景下传统的静态 Markdown-HTML 管线会产生延迟或破坏体验。
+
+## 🚀 实时演示
+
+- [Streaming playground](https://vue-markdown-renderer.simonhe.me/) — 在浏览器中试用大文件、渐进式图表等特性。
+- [Markdown vs v-html comparison](https://vue-markdown-renderer.simonhe.me/markdown) — 对比本库的响应式渲染与传统静态管线。
+
+### 介绍视频
+
+一段短视频介绍了 vue-renderer-markdown 的关键特性与使用方式。
+
+[![在 Bilibili 查看介绍](https://i1.hdslb.com/bfs/archive/f073718bd0e51acaea436d7197880478213113c6.jpg)](https://www.bilibili.com/video/BV17Z4qzpE9c/)
+
+在 Bilibili 上观看： [Open in Bilibili](https://www.bilibili.com/video/BV17Z4qzpE9c/)
+
+## 特性
+
+- ⚡ 极致性能：为流式场景设计的最小化重渲染和高效 DOM 更新
+- 🌊 流式优先：原生支持不完整或频繁更新的 token 化 Markdown 内容
+- 🧠 Monaco 流式更新：高性能的 Monaco 集成，支持大代码块的平滑增量更新
+- 🪄 渐进式 Mermaid：图表在语法可用时即时渲染，并在后续更新中完善
+- 🧩 自定义组件：允许在 Markdown 内容中嵌入自定义 Vue 组件
+- 📝 完整 Markdown 支持：表格、公式、Emoji、复选框、代码块等
+- 🔄 实时更新：支持增量内容而不破坏格式
+- 📦 TypeScript 优先：提供完善的类型定义与智能提示
+- 🔌 零配置：开箱即可在 Vue 3 项目中使用
+- 🎨 灵活的代码块渲染：可选 Monaco 编辑器 (`CodeBlockNode`) 或轻量的 Shiki 高亮 (`MarkdownCodeBlockNode`)
 
 ## 安装
 
 ```bash
-pnpm add vue-renderer-markdown vue
-# 或
-npm install vue-renderer-markdown vue
-# 或
-yarn add vue-renderer-markdown vue
+pnpm add vue-renderer-markdown
+# or
+npm install vue-renderer-markdown
+# or
+yarn add vue-renderer-markdown
 ```
 
-### 可选 peer 依赖
+### Peer 依赖
 
-如需开启高级功能，可按需安装：
+本包设计为在运行时按需加载可选依赖，缺失时会优雅退化。要打开高级功能，请按需安装下列 peer：
 
-| 依赖 | 版本 | 作用 | 缺失时退化行为 |
-|------|------|------|----------------|
-| `mermaid` | >=11 | Mermaid 图表 | 展示源代码 |
-| `stream-monaco` | >=0.0.2 | Monaco 编辑器 | 仅显示纯文本 |
-| `stream-markdown` | >=0.0.2 | `MarkdownCodeBlockNode` 所用的流式高亮渲染器 | 仅显示纯文本 |
-| `shiki` | ^3.13.0 | MarkdownCodeBlockNode 语法高亮 | 仅显示纯文本 |
-| `vue-i18n` | >=9 | 国际化 | 内置同步翻译器 |
+完整安装（推荐，用于启用全部功能）：
 
-- ⚠️ KaTeX 未随本库打包或自动注入。如需 LaTeX 数学公式渲染，请在宿主应用中安装 `katex` 并手动引入其样式表。示例：
+```bash
+pnpm add mermaid stream-monaco shiki
+```
+
+按需功能：
+
+| 依赖 | 版本 | 启用功能 | 缺省回退 |
+|---|---:|---|---|
+| `mermaid` | >=11 | 渐进式 Mermaid 图表 | 展示原始代码块 |
+| `stream-monaco` | >=0.0.33 | Monaco 编辑器的流式集成 | 以纯文本显示 |
+| `stream-markdown` | >=0.0.2 | `MarkdownCodeBlockNode` 的流式高亮 | 以纯文本显示 |
+| `shiki` | ^3.13.0 | Shiki 语法高亮 | 以纯文本显示 |
+| `vue-i18n` | >=9 | 国际化支持 | 内置轻量同步翻译器 |
+
+重要说明：
+
+- KaTeX 未打包或自动注入。如需 LaTeX 渲染，请在宿主应用中安装 `katex` 并在入口处引入样式：
 
 ```bash
 pnpm add katex
-# 或
-npm install katex
 ```
 
-然后在应用入口（例如 `main.ts`）中引入样式：
+然后在 `main.ts` 中：
 
 ```ts
 import 'katex/dist/katex.min.css'
 ```
 
-- 🖼️ 工具栏图标改用本地 SVG，无需额外图标库
+- 工具栏图标以本地 SVG 提供，无需额外图标库。
+- 可选 peer 在运行时按需懒加载，因此你可先以最小依赖开始，然后按需增加功能。
 
-## 国际化（i18n）
+## 服务端渲染（SSR）
 
-默认情况下，`getMarkdown` 使用英文文本作为 UI 元素（例如代码块中的 "Copy" 按钮）。你可以通过提供 `i18n` 选项来自定义这些文本：
+库的导入对 SSR 是安全的。重型依赖（Monaco、Mermaid、Worker）会在浏览器端懒加载。注意某些功能（Monaco 编辑器、渐进式 Mermaid、Web Worker）依赖浏览器 API，只能在客户端渲染。
 
-**使用翻译映射表：**
+Nuxt 3 快速示例：使用 `<client-only>` 包裹组件：
+
+```vue
+<template>
+  <client-only>
+    <MarkdownRender :content="markdown" />
+  </client-only>
+</template>
+```
+
+Vite SSR / 自定义 SSR：延迟到 onMounted 后渲染：
+
+```vue
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import MarkdownRender from 'vue-renderer-markdown'
+
+const mounted = ref(false)
+onMounted(() => {
+  mounted.value = true
+})
+</script>
+
+<template>
+  <div v-if="mounted">
+    <MarkdownRender :content="markdown" />
+  </div>
+  <div v-else>
+    <pre>{{ markdown }}</pre>
+  </div>
+</template>
+```
+
+运行 SSR 检查（仓库提供的脚本）可用：
+
+```bash
+pnpm run check:ssr
+```
+
+注意：KaTeX 在 SSR 下可用，但仅当宿主应用安装并打包了 `katex`。
+
+## 数学公式渲染选项
+
+本库内置轻量的数学插件，会尝试规范常见 KaTeX/TeX 命令及因字符转义造成的问题（例如字符串中意外出现的控制字符）。
+
+你可以通过 `getMarkdown` 的 `mathOptions` 参数自定义行为：
 
 ```ts
 import { getMarkdown } from 'vue-renderer-markdown'
 
-const md = getMarkdown('editor-1', {
-  i18n: {
-    'common.copy': '复制',
+const md = getMarkdown({
+  mathOptions: {
+    commands: ['in', 'perp', 'alpha'],
+    escapeExclamation: true,
   }
 })
 ```
 
-**使用翻译函数：**
+导出工具：
+
+- `KATEX_COMMANDS` — 默认需自动加反斜杠的命令列表。
+- `normalizeStandaloneBackslashT(s, opts?)` — 内部用到的规范化函数，可用于预处理数学内容。
+
+示例：
 
 ```ts
-import { useI18n } from 'vue-i18n' // 或任何 i18n 库
-import { getMarkdown } from 'vue-renderer-markdown'
+import { KATEX_COMMANDS, normalizeStandaloneBackslashT } from 'vue-renderer-markdown'
 
-const { t } = useI18n()
-
-const md = getMarkdown('editor-1', {
-  i18n: (key: string) => t(key)
-})
+const raw = 'a\tb + infty'
+const normalized = normalizeStandaloneBackslashT(raw, { commands: KATEX_COMMANDS })
 ```
 
-**默认翻译键：**
+### 全局/插件级默认值
 
-- `common.copy`: "Copy" — 用于代码块复制按钮
+安装插件时可传入 math 默认项，所有由库创建的实例都会继承这些默认值：
 
-这种设计保持了 markdown 工具函数的纯粹性，避免了全局副作用，允许你与任何 i18n 解决方案集成或提供静态翻译。
+```ts
+import { createApp } from 'vue'
+import MarkdownRender, { VueRendererMarkdown } from 'vue-renderer-markdown'
+
+const app = createApp(App)
+
+app.use(VueRendererMarkdown, {
+  mathOptions: {
+    commands: ['in', 'perp', 'alpha'],
+    escapeExclamation: false,
+  }
+})
+
+app.mount('#app')
+```
+
+或者调用 `setDefaultMathOptions`：
+
+```ts
+import { setDefaultMathOptions } from 'vue-renderer-markdown'
+
+setDefaultMathOptions({ commands: ['infty', 'perp'], escapeExclamation: true })
+```
+
+## 国际化（i18n）
+
+默认 `getMarkdown` 使用英文 UI 文案。你可以通过 `i18n` 选项传入映射表或翻译函数：
+
+```ts
+// 翻译映射
+const md = getMarkdown('editor-1', { i18n: { 'common.copy': '复制' } })
+
+// 翻译函数（例如使用 vue-i18n）
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+const md2 = getMarkdown('editor-1', { i18n: (key: string) => t(key) })
+```
+
+默认翻译键示例：`common.copy` — 代码块复制按钮文本。
+
+该设计使工具函数保持纯净，可与任意 i18n 解决方案集成或直接传入静态翻译映射。
 
 ## 快速开始
+
+1. 安装（包含 Vue）：
+
+```bash
+pnpm add vue-renderer-markdown vue
+```
+
+2. 基本用法：
 
 ```vue
 <script setup lang="ts">
@@ -114,14 +267,16 @@ import MarkdownRender from 'vue-renderer-markdown'
 import 'vue-renderer-markdown/index.css'
 
 const content = `
-# Hello Vue Markdown
+# Hello World
 
-- 支持列表
-- 支持 **加粗** / *斜体*
+This is **bold** and this is *italic*.
 
-\`\`\`ts
-console.log('流式渲染!')
-\`\`\`
+- List item 1
+- List item 2
+
+```javascript
+console.log('Code block!')
+```
 `
 </script>
 
@@ -130,384 +285,194 @@ console.log('流式渲染!')
 </template>
 ```
 
-### 代码块模式
+### 启用可选特性示例
 
-| 模式 | 组件 | 适用场景 | 依赖 |
-|------|------|----------|------|
-| 默认 Monaco | `CodeBlockNode` | 交互、折叠、复制等完整功能 | `stream-monaco` |
-| Shiki 高亮 | `MarkdownCodeBlockNode` | 轻量展示、SSR 友好 | `shiki` |
-| 纯文本 | `PreCodeNode` | 最小依赖、AI "思考" 输出 | 无 |
+Mermaid：
 
-切换示例：
+```bash
+pnpm add mermaid
+```
+
+Monaco 编辑器：
+
+```bash
+pnpm add stream-monaco
+```
+
+Shiki 高亮：
+
+```bash
+pnpm add shiki
+```
+
+### 组件属性（重要的选项说明）
+
+组件常用 props 概览：
+
+| 名称 | 类型 | 必需 | 描述 |
+|---|---|---:|---|
+| `content` | `string` | ✓ | 要渲染的 Markdown 文本 |
+| `nodes` | `BaseNode[]` |  | 解析好的 AST 节点（替代 `content`） |
+| `renderCodeBlocksAsPre` | `boolean` |  | 将所有 code_block 渲染为简单的 `<pre><code>`（轻量、无依赖） |
+| `codeBlockStream` | `boolean` |  | 控制 code_block 的流式行为（`true` 时逐步更新，`false` 时等待最终内容） |
+| `viewportPriority` | `boolean` |  | 是否优先渲染视口内/附近的重型节点，默认 `true` |
+
+> 注意：`content` 或 `nodes` 必须提供其一。
+
+## 新属性：`renderCodeBlocksAsPre`
+
+- 类型：`boolean`
+- 默认：`false`
+
+说明：将 `code_block` 节点全部以简单预格式化文本渲染（库内部的 `PreCodeNode`），而不是使用可能依赖可选 peer（Monaco、Mermaid）的完整 `CodeBlockNode`。适用于需要轻量呈现（例如 AI 思考输出）且不想引入可选依赖的场景。
+
+注意：开启后 `CodeBlockNode` 的相关 prop（例如主题、Monaco 配置等）不会生效。
+
+示例：
+
+```vue
+<MarkdownRender :content="markdown" :render-code-blocks-as-pre="true" />
+```
+
+## 新属性：`codeBlockStream`
+
+- 类型：`boolean`
+- 默认：`true`
+
+说明：设为 `false` 时，`code_block` 节点不会在中途增量渲染，而是保持加载占位并在最终内容准备好时一次性渲染。这在某些场景下可以降低布局抖动或避免频繁初始化 Monaco。仅在 `CodeBlockNode` 被使用时生效。
+
+示例：
+
+```vue
+<MarkdownRender :content="markdown" :code-block-stream="false" />
+```
+
+## 新属性：`viewportPriority`
+
+- 类型：`boolean`
+- 默认：`true`
+
+说明：默认开启时，渲染器会优先处理视口附近的重型节点（如 Mermaid、Monaco），将离屏工作延后，从而提升长文档或流式内容的可交互性。设为 `false` 会使渲染器尽快渲染全部节点（用于打印/导出等场景）。
+
+示例：
+
+```vue
+<MarkdownRender :content="markdown" :viewport-priority="false" />
+```
+
+## 高级定制
+
+你可以通过两种方式覆盖内部节点的渲染组件：
+
+- 范围化（推荐）：使用 `setCustomComponents(id, mapping)` 并在对应的 `MarkdownRender` 实例上传入 `custom-id`，只影响该实例。
+- 全局（兼容旧用法）：调用 `setCustomComponents(mapping)`，但该方式灵活性较差且不推荐用于新的用例。
+
+示例（范围化）：
+
+```ts
+import { createApp } from 'vue'
+import MarkdownRender, { setCustomComponents } from 'vue-renderer-markdown'
+import MyCustomNode from './components/MyCustomNode.vue'
+
+setCustomComponents('docs-page', {
+  admonition: MyCustomNode,
+})
+
+// 在渲染器中使用：
+// <MarkdownRender :content="markdown" custom-id="docs-page" />
+```
+
+如果动态创建/销毁映射，请使用 `removeCustomComponents(id)` 释放内存。
+
+### MarkdownCodeBlockNode（替代轻量代码块渲染）
+
+`MarkdownCodeBlockNode` 提供了基于 Shiki 的语法高亮替代 Monaco 的展示方式，适合只需展示且希望 SSR 友好的场景。
+
+所需 peer：`stream-markdown` (>=0.0.2) 与 `shiki` (^3.13.0)。
+
+安装：
+
+```bash
+pnpm add stream-markdown shiki
+```
+
+用法：
 
 ```ts
 import { MarkdownCodeBlockNode, setCustomComponents } from 'vue-renderer-markdown'
 
-setCustomComponents({
-  code_block: MarkdownCodeBlockNode,
-})
+setCustomComponents({ code_block: MarkdownCodeBlockNode })
 ```
 
-使用 MarkdownCodeBlockNode 时需要安装以下 peer 依赖：
+## Vite 配置与 Worker 用法
 
-- `stream-markdown` (>=0.0.2)
-- `shiki` (^3.13.0)
-
-安装示例：
-
-```bash
-# pnpm
-pnpm add stream-markdown shiki
-
-# npm
-npm install stream-markdown shiki
-
-# yarn
-yarn add stream-markdown shiki
-```
-
-或在实例级启用纯文本：
-
-```vue
-<MarkdownRender :content="content" :render-code-blocks-as-pre="true" />
-```
-
-### 代码块插槽（Slots）
-
-`CodeBlockNode` 和 `MarkdownCodeBlockNode` 都支持以下插槽，用于自定义渲染：
-
-- `header-left` — 替换头部左侧内容（默认为语言图标 + 标签）
-- `header-right` — 替换头部右侧内容（默认为操作按钮）
-- `loading` — 自定义加载占位符，仅在非流式模式且加载中时显示。接收插槽 props：`{ loading: boolean, stream: boolean }`
-
-**示例：自定义加载占位符**
-
-```vue
-<CodeBlockNode
-  :node="{ type: 'code_block', language: 'python', code: code, raw: code }"
-  :stream="false"
-  :loading="isLoading"
->
-  <template #loading="{ loading, stream }">
-    <div v-if="loading && !stream" class="p-4 text-center">
-      <div class="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full" />
-      <p class="mt-2 text-sm text-gray-500">正在初始化编辑器...</p>
-    </div>
-  </template>
-</CodeBlockNode>
-```
-
-默认情况下，loading 插槽会显示一个带动画的骨架屏。你可以通过插槽完全自定义加载状态的 UI。
-
-## TypeScript 使用
-
-### 渲染类型化 AST
-
-```vue
-<script setup lang="ts">
-import type { BaseNode } from 'vue-renderer-markdown'
-import { ref, watchEffect } from 'vue'
-import MarkdownRender, { parseMarkdownToStructure } from 'vue-renderer-markdown'
-
-const content = ref<string>('# Demo\n\n- 列表项\n')
-const nodes = ref<BaseNode[]>([])
-
-watchEffect(() => {
-  nodes.value = parseMarkdownToStructure(content.value)
-})
-</script>
-
-<template>
-  <MarkdownRender :nodes="nodes" />
-</template>
-```
-
-### 自定义组件时的类型提示
-
-```vue
-<!-- components/CustomCodeBlock.vue -->
-<script setup lang="ts">
-import type { CodeBlockNode } from 'vue-renderer-markdown'
-
-const props = defineProps<{ node: CodeBlockNode }>()
-</script>
-
-<template>
-  <pre class="custom-code">
-    <code :data-lang="props.node.language">{{ props.node.code }}</code>
-  </pre>
-</template>
-```
-
-```ts
-// main.ts
-import { createApp } from 'vue'
-import { setCustomComponents, VueRendererMarkdown } from 'vue-renderer-markdown'
-import App from './App.vue'
-import CustomCodeBlock from './components/CustomCodeBlock.vue'
-
-const app = createApp(App)
-
-setCustomComponents('docs', {
-  code_block: CustomCodeBlock,
-})
-
-app.use(VueRendererMarkdown, {
-  mathOptions: {
-    commands: ['infty', 'perp', 'alpha'],
-    escapeExclamation: true,
-  },
-  getLanguageIcon(lang) {
-    return lang === 'shell' ? '<span>sh</span>' : undefined
-  },
-})
-
-app.mount('#app')
-```
-
-### NodeRenderer 属性：`parseOptions`
-
-`<MarkdownRender />`（组件内部名为 `NodeRenderer`）现已支持一个新的 `parseOptions` 属性。当你通过 `content` 传入 Markdown 字符串并让组件内部解析时，`parseOptions` 会被转发给内部的 `parseMarkdownToStructure`，从而允许你在解析前/后对 token 或节点做自定义转换，而不需要手动调用解析函数。
-
-类型说明（库中已导出）：
-
-- `preTransformTokens?: (tokens: MarkdownToken[]) => MarkdownToken[]` — 在 `markdown-it` 生成 token 之后、库处理之前调用。用于重写或替换 tokens。
-- `postTransformTokens?: (tokens: MarkdownToken[]) => MarkdownToken[]` — 在库做内部 token 修复之后调用；如果你返回了新的 token 数组，库会重新将其处理为节点。
-- `postTransformNodes?: (nodes: ParsedNode[]) => ParsedNode[]` — 直接在解析出的节点树上操作，常用于调整最终输出，是最简单高效的方式之一。
-
-使用场景：当你需要支持自定义语法（例如把特定 HTML 块映射为自定义节点类型）或做轻量级的 token 修改以支持自定义组件渲染时，`parseOptions` 非常有用。配合 `setCustomComponents`（或实例级的 `custom-id` 机制）可将自定义节点类型映射为 Vue 组件。
-
-Token 级示例（作为组件 prop 传入）：
-
-```vue
-<script setup lang="ts">
-import MarkdownRender, { getMarkdown } from 'vue-renderer-markdown'
-
-const md = getMarkdown()
-
-function pre(tokens: any[]) {
-  return tokens.map((t) => {
-    if (t.type === 'html_block' && /<thinking>/.test(t.content || '')) {
-      return { ...t, type: 'thinking_block', content: (t.content || '').replace(/<\/?thinking>/g, '') }
-    }
-    return t
-  })
-}
-
-const parseOptions = { preTransformTokens: pre }
-</script>
-
-<template>
-  <MarkdownRender :content="markdownString" :parse-options="parseOptions" custom-id="playground-demo" />
-</template>
-```
-
-节点级示例（postTransformNodes 作为组件 prop）：
-
-```vue
-<script setup lang="ts">
-import MarkdownRender from 'vue-renderer-markdown'
-
-function postNodes(nodes) {
-  if (!nodes || nodes.length === 0)
-    return nodes
-  const first = nodes[0]
-  if (first.type === 'paragraph') {
-    return [{ type: 'thinking', content: 'Auto-thought', children: [first] }, ...nodes.slice(1)]
-  }
-  return nodes
-}
-
-const parseOptions = { postTransformNodes: postNodes }
-</script>
-
-<template>
-  <MarkdownRender :content="markdownString" :parse-options="parseOptions" />
-</template>
-```
-
-注意：
-
-- 如果你已经自己调用 `parseMarkdownToStructure` 并将 `nodes` 直接传给组件，则 `parseOptions` 不会生效——它仅在组件接收 `content` 并在内部解析时被使用。
-- 当你通过 token 转换生成新的自定义节点类型时，请用 `setCustomComponents('your-id', { your_node_type: YourComponent })` 注册对应的 Vue 组件，并给组件传入 `custom-id="your-id"`，以便渲染器能找到并渲染你的组件。
-
-## SSR 指南
-
-本库设计为 SSR 安全，重型依赖（Monaco、Mermaid）仅在浏览器端懒加载，浏览器相关功能会自动跳过服务端渲染。
-
-- Nuxt 3：使用 `<client-only>` 包裹组件
-  ```vue
-  <template>
-    <client-only>
-      <MarkdownRender :content="markdown" />
-    </client-only>
-  </template>
-  ```
-- Vite SSR / 自定义 SSR：在 `onMounted` 后再渲染组件
-  ```vue
-  <script setup lang="ts">
-  import { onMounted, ref } from 'vue'
-  import MarkdownRender from 'vue-renderer-markdown'
-
-  const mounted = ref(false)
-  onMounted(() => {
-    mounted.value = true
-  })
-  </script>
-
-  <template>
-    <div v-if="mounted">
-      <MarkdownRender :content="markdown" />
-    </div>
-    <div v-else>
-      <!-- SSR 回退：轻量预格式化文本 -->
-      <pre>{{ markdown }}</pre>
-    </div>
-  </template>
-  ```
-- 运行 `pnpm run check:ssr` 可验证导入安全
-- 需要服务器预渲染的图表或代码，可先生成静态 HTML 后传入
-
-更多示例详见 [docs/nuxt-ssr.zh-CN.md](docs/nuxt-ssr.zh-CN.md)。
-
-## 故障排查
-
-### Monaco worker 加载失败
-
-**现象**：生产环境或预览时控制台报错 `Could not load worker`、`Failed to load Monaco worker`。
-
-**解决方案**：在 Vite 配置中启用 `vite-plugin-monaco-editor-esm` 并指定 worker 输出目录。
+若使用 Vite，建议将 worker 格式设置为 `es`：
 
 ```ts
 // vite.config.ts
-import path from 'node:path'
-import monacoEditorPlugin from 'vite-plugin-monaco-editor-esm'
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
 
-export default {
-  plugins: [
-    monacoEditorPlugin({
-      languageWorkers: ['editorWorkerService', 'typescript', 'css', 'html', 'json'],
-      customDistPath(root, buildOutDir, base) {
-        return path.resolve(buildOutDir, 'monacoeditorwork')
-      },
-    }),
-  ],
-}
-```
-
-> 注意：如仅需渲染 Monaco 编辑器（用于代码编辑或预览），可直接集成 `stream-monaco`，无需本库的完整 Markdown 渲染管线。
-
-### 小提示（提高首次 Code Block 渲染流畅度）
-
-如果你的应用使用 Monaco 来渲染可编辑的代码块，建议在应用初始化或页面挂载阶段主动调用 `getUseMonaco()` 来预加载 `stream-monaco` 与相关的 worker 文件。这样可以避免在首次渲染 `code_block` 时因为 Worker 延迟而出现的卡顿或闪烁，提升首屏交互体验。示例：
-
-```ts
-// 应用初始化或页面挂载时调用（示例路径基于本仓库）
-import { getUseMonaco } from './src/components/CodeBlockNode/monaco'
-
-// 触发动态导入并 preload（内部会捕获错误并优雅降级）
-getUseMonaco()
-```
-
-`getUseMonaco()` 会尝试动态导入 `stream-monaco` 并调用内部的 preload helper 来注册/加载 Monaco 的 worker；如果模块不存在（未安装或在 SSR 环境），该函数会返回 `null` 并保持安全的回退行为。
-### Mermaid 不渲染
-
-**现象**：标记为 ` ```mermaid` 的代码块仍然显示原始文本。
-
-**排查步骤**：
-
-1. 确认已经安装依赖：
-   ```bash
-   pnpm add mermaid
-   ```
-2. 校验代码块语法是否为有效 Mermaid：
-   ```markdown
-   ```mermaid
-   graph TD
-     A[Start] --> B[End]
-   ```
-   ```
-3. 打开控制台查看 Mermaid 抛出的错误，库会在渲染失败时自动回退到源码展示。
-
-### 语法高亮无效
-
-**现象**：使用 `MarkdownCodeBlockNode` 时代码块仅显示纯文本。
-
-**解决方案**：安装 `MarkdownCodeBlockNode` 所需依赖：
-
-```bash
-pnpm add stream-markdown shiki
-```
-
-并确保在渲染器中启用了该组件：
-
-```ts
-import { MarkdownCodeBlockNode, setCustomComponents } from 'vue-renderer-markdown'
-
-setCustomComponents({
-  code_block: MarkdownCodeBlockNode,
+export default defineConfig({
+  plugins: [vue()],
+  worker: { format: 'es' },
 })
 ```
 
-### TypeScript 提示缺失
+为 KaTeX 与 Mermaid 使用 Web Worker：
 
-**现象**：项目中报错 `Cannot find module 'vue-renderer-markdown'` 或类型提示缺失。
+```ts
+import KatexWorker from 'vue-renderer-markdown/workers/katexRenderer.worker?worker'
+import { setKaTeXWorker } from 'vue-renderer-markdown/workers/katexWorkerClient'
 
-**排查步骤**：
+setKaTeXWorker(new KatexWorker())
 
-1. 从包入口导入类型：
-   ```ts
-   import type { BaseNode, CodeBlockNode } from 'vue-renderer-markdown'
-   ```
-2. 如需更细致的类型定义：
-   ```ts
-   import type { MarkdownRenderProps } from 'vue-renderer-markdown/dist/types'
-   ```
-3. 在 `tsconfig.json` 中开启 `"moduleResolution": "bundler"` 或 `"node16"`：
-   ```json
-   {
-     "compilerOptions": {
-       "moduleResolution": "bundler"
-     }
-   }
-   ```
-### SSR 报 `window is not defined`
+import MermaidWorker from 'vue-renderer-markdown/workers/mermaidParser.worker?worker'
+import { setMermaidWorker } from 'vue-renderer-markdown/workers/mermaidWorkerClient'
 
-**原因**：Monaco、Mermaid、Web Worker 等功能依赖浏览器环境，需要延迟到客户端执行。
+setMermaidWorker(new MermaidWorker())
+```
 
-- **Nuxt 3**：
-  ```vue
-  <template>
-    <client-only>
-      <MarkdownRender :content="markdown" />
-    </client-only>
-  </template>
-  ```
-- **自定义 Vite SSR**：
-  ```vue
-  <script setup lang="ts">
-  import { onMounted, ref } from 'vue'
-  import MarkdownRender from 'vue-renderer-markdown'
+## ImageNode 插槽（占位 / 错误）
 
-  const mounted = ref(false)
-  onMounted(() => {
-    mounted.value = true
-  })
-  </script>
+`ImageNode` 支持两个命名插槽来自定义加载与报错态：`placeholder` 与 `error`。插槽接收以下响应式 props：
 
-  <template>
-    <MarkdownRender v-if="mounted" :content="markdown" />
-  </template>
-  ```
+- `node` — 原始 ImageNode 对象
+- `displaySrc` — 当前用于渲染的 src（可能为 fallbackSrc）
+- `imageLoaded` — 图片是否已加载
+- `hasError` — 是否处于错误态
+- `fallbackSrc` — 传入的 fallback 地址（如有）
+- `lazy` — 是否使用懒加载
+- `isSvg` — 当前 displaySrc 是否为 SVG
 
-### Tailwind 样式冲突
+如果不提供插槽，组件会显示内置的 CSS 旋转加载器与简单错误占位。
 
-**现象**：库的样式被 Tailwind 或其他组件库覆盖。
+## TableNode loading 插槽
 
-**解决方案**：将库样式导入 Tailwind 的 `components` 层，确保加载顺序可控。
+`TableNode` 在 `node.loading === true` 时会显示 shimmer + spinner 覆盖层，你可以通过 `loading` 插槽替换覆盖层内容，插槽 props 为 `{ isLoading: boolean }`。
+
+## LinkNode 下划线动画与颜色定制
+
+`LinkNode` 支持运行时配置下划线动画与颜色的若干 prop，默认保持此前的外观。可调整的 prop 包括 `color`、`underlineHeight`、`underlineBottom`、`animationDuration`、`animationOpacity`、`animationTiming`、`animationIteration`。
+
+示例、默认值与注意事项见英文文档。
+
+## Monaco 编辑器集成
+
+若使用 Monaco，请配置 `vite-plugin-monaco-editor-esm` 以正确打包 worker。对于只需要 Monaco 编辑器而不需要完整渲染管线的场景，可以直接使用 `stream-monaco` 进行更轻量的集成。
+
+建议在应用初始化或页面挂载时调用 `getUseMonaco()` 预加载 Monaco，以减少首次渲染延迟（函数会在模块不可用或 SSR 环境下安全降级）：
+
+```ts
+import { getUseMonaco } from './src/components/CodeBlockNode/monaco'
+getUseMonaco()
+```
+
+## Tailwind（例如 shadcn）——样式顺序问题处理
+
+若使用 Tailwind 组件库（如 shadcn），可能遇到样式顺序导致覆盖问题。推荐把库样式放入 Tailwind 的 `components` 层以便应用样式覆盖：
 
 ```css
-/* main.css 或 index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -517,86 +482,34 @@ setCustomComponents({
 }
 ```
 
-如需更高优先级，可放入 `base` 层：
+或根据需要放入 `base` 层以提高优先级。
 
-```css
-@layer base {
-  @import 'vue-renderer-markdown/index.css';
-}
-```
+## 故障排查（常见问题）
 
-### 图标未显示
+- Monaco worker 未找到：请配置 `vite-plugin-monaco-editor-esm` 或使用相应的 Webpack 插件以确保 worker 能被正确打包与加载。
+- Mermaid 不渲染：确认已安装 `mermaid` 且语法正确；查看控制台错误以确定问题。
+- 语法高亮无效：确认安装 `stream-markdown` 与 `shiki` 并将 `MarkdownCodeBlockNode` 注册为代码块渲染组件。
+- TypeScript 类型问题：通过正确路径导入类型并确保 `tsconfig` 的 `moduleResolution` 设置兼容（`bundler` 或 `node16`）。
+- SSR 报 `window is not defined`：将涉及浏览器 API 的渲染包裹为 client-only 或延迟到 onMounted 执行。
+- 图标未显示：确认引入样式并检查构建工具是否允许从依赖中导入静态资源（SVG）。
 
-**现象**：复制、折叠等工具栏按钮显示为文本或占位符。
+更详细的解决方案与示例请参见英文 README 的相应章节。
 
-**解决方案**：
+## 鸣谢
 
-1. 确认已经引入库的样式文件（`import 'vue-renderer-markdown/index.css'`）。
-2. 检查构建工具是否允许从依赖中导入静态资源（SVG）。
-3. 如已自定义图标组件，请确保它们渲染了预期的 SVG 内容。
+本项目使用并受益于：
 
-## 性能优化建议
+- [stream-monaco](https://github.com/Simon-He95/stream-monaco)
+- [stream-markdown](https://github.com/Simon-He95/stream-markdown)
+- [mermaid](https://mermaid-js.github.io/mermaid)
+- [shiki](https://github.com/shikijs/shiki)
 
-- 将大型 Markdown 文档拆分为小块流式写入，避免一次性渲染阻塞主线程。
-- 仅展示时使用 `MarkdownCodeBlockNode` 或 `render-code-blocks-as-pre`，可跳过 Monaco 初始化。
-- 使用 `setCustomComponents('id', mapping)` 为不同渲染实例分别注册组件，并在不再需要时移除，减少内存占用。
-- 在应用启动时调用 `setDefaultMathOptions`，统一数学公式配置，防止在渲染期间重复计算。
-- 对复杂 Mermaid 图表可提前在服务端校验或预渲染，再将结果作为缓存内容传给组件。
-- Math 渲染错误时，可通过 `setDefaultMathOptions` 调整需要自动补全反斜杠的指令集合。若需在服务端生成或缓存 KaTeX 输出，请确保宿主应用已安装 `katex` 并将其包含在构建中。
+感谢这些项目的作者与贡献者！
 
-## 新增属性：`viewportPriority`
+## Star 历史
 
-- 类型：`boolean`
-- 默认值：`true`
+[![Star History Chart](https://api.star-history.com/svg?repos=Simon-He95/vue-markdown-render&type=Date)](https://www.star-history.com/#Simon-He95/vue-markdown-render&Date)
 
-说明：
-- 开启（默认）时，渲染器会优先渲染视口内或接近视口的节点，将离屏的重型节点（如 Mermaid、Monaco）延后处理，从而提升长文档与流式内容的首屏可交互体验。
-- 关闭（设为 `false`）时，所有节点将尽快“急切”渲染，适合打印/导出、需要一次性完成布局测量的场景，或你明确希望立即呈现全部内容的情况。
+## 许可
 
-示例：
-```vue
-<script setup lang="ts">
-import MarkdownRender from 'vue-renderer-markdown'
-
-const markdown = `# 包含大量图表与代码块的长文档...`
-</script>
-
-<template>
-  <!-- 准备打印或导出时可关闭视口优先 -->
-  <MarkdownRender :content="markdown" :viewport-priority="false" />
-  <!-- 在模板中使用短横线写法：viewport-priority；不传时为默认开启 -->
-</template>
-```
-
-## 国际化 / 备用翻译
-
-如不想安装或使用 `vue-i18n`，本库内置了一个同步备用翻译器，覆盖常见 UI 文案（复制、预览、图片加载等）。可在应用启动时通过 `setDefaultI18nMap` 替换默认英文翻译：
-
-```ts
-import { setDefaultI18nMap } from 'vue-renderer-markdown'
-
-setDefaultI18nMap({
-  'common.copy': '复制',
-  'common.copySuccess': '已复制',
-  'common.decrease': '减少',
-  'common.reset': '重置',
-  'common.increase': '增加',
-  'common.expand': '展开',
-  'common.collapse': '折叠',
-  'common.preview': '预览',
-  'image.loadError': '图片加载失败',
-  'image.loading': '正在加载图片...',
-})
-```
-
-如安装并配置了 `vue-i18n`，库会优先使用其翻译。
-## 相关链接
-
-- Streaming Playground：https://vue-markdown-renderer.simonhe.me/
-- 传统渲染对比示例：https://vue-markdown-renderer.simonhe.me/markdown
-- 文档：[docs/](docs/)
-- Issue 反馈：https://github.com/Simon-He95/vue-markdown-render/issues
-
-## 许可协议
-
-[MIT](./LICENSE)
+[MIT](./LICENSE) © [Simon He](https://github.com/Simon-He95)
