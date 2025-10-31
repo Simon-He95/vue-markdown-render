@@ -94,12 +94,6 @@ function buildIssueUrl(text: string) {
   return `${base}&body=${encodeURIComponent(body)}`
 }
 
-function buildIssueUrlFromLink(link: string) {
-  const base = 'https://github.com/Simon-He95/vue-markdown-renderer/issues/new?template=bug_report.yml'
-  const body = `**Reproduction link**:\n\nPlease open the reproduction link below:\n\n${link}`
-  return `${base}&body=${encodeURIComponent(body)}`
-}
-
 async function copyShareLink() {
   const u = shareUrl.value || window.location.href
   try {
