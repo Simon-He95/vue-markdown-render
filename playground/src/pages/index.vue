@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useRouter } from 'vue-router'
 import { getUseMonaco } from '../../../src/components/CodeBlockNode/monaco'
 import MarkdownRender from '../../../src/components/NodeRenderer'
 import { removeCustomComponents, setCustomComponents } from '../../../src/utils/nodeComponents'
@@ -22,6 +23,14 @@ const normalizedChunkSize = computed(() => Math.max(1, Math.floor(streamChunkSiz
 getUseMonaco()
 setKaTeXWorker(new KatexWorker())
 setMermaidWorker(new MermaidWorker())
+const router = useRouter()
+
+function goToTest() {
+  // Prefer router navigation, fallback to full redirect if it fails.
+  router.push('/test').catch(() => {
+    window.location.href = '/test'
+  })
+}
 
 // Keep persisted values within reasonable bounds on hydration.
 watchEffect(() => {
@@ -836,12 +845,13 @@ watch(content, () => {
             </div>
           </div>
 
-          <!-- GitHub Star Button -->
-          <a
-            href="https://github.com/Simon-He95/vue-markdown-render"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="
+          <div class="flex">
+            <!-- GitHub Star Button -->
+            <a
+              href="https://github.com/Simon-He95/vue-markdown-render"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="
               github-star-btn flex items-center gap-2 px-3 py-1.5
               bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600
               text-white text-sm font-medium rounded-lg
@@ -849,10 +859,21 @@ watch(content, () => {
               shadow-md hover:shadow-lg
               focus:outline-none focus:ring-2 focus:ring-blue-500/50
             "
-          >
-            <Icon icon="carbon:star" class="w-4 h-4" />
-            <span>Star</span>
-          </a>
+            >
+              <Icon icon="carbon:star" class="w-4 h-4" />
+              <span>Star</span>
+            </a>
+
+            <!-- Test Page Button -->
+            <button
+              class="ml-2 test-page-btn flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title="Go to Test page"
+              @click="goToTest"
+            >
+              <Icon icon="carbon:rocket" class="w-4 h-4" />
+              <span>Test</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -106,7 +106,6 @@
     "stream-markdown-parser": "^0.0.11"
   },
   "devDependencies": {
-    "lz-string": "^1.5.0",
     "@antfu/eslint-config": "^5.4.1",
     "@types/node": "^18.19.130",
     "@vitejs/plugin-vue": "^5.2.4",
@@ -116,6 +115,7 @@
     "bumpp": "^8.2.1",
     "eslint": "^9.38.0",
     "lint-staged": "^13.3.0",
+    "lz-string": "^1.5.0",
     "picocolors": "^1.1.1",
     "postcss-cli": "^11.0.1",
     "rollup": "^3.29.5",
