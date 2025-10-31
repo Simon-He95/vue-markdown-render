@@ -20,6 +20,7 @@ export const KATEX_COMMANDS = [
   'cdots',
   'quad',
   'in',
+  'end',
   'infty',
   'perp',
   'mid',
@@ -69,7 +70,6 @@ export const KATEX_COMMANDS = [
   'text',
   'left',
   'right',
-  'times',
 ]
 
 // Precompute escaped KATEX commands and default regex used by
@@ -145,17 +145,27 @@ export function normalizeStandaloneBackslashT(s: string, opts?: MathOptions) {
     : [commands.map(c => c.replace(/[.*+?^${}()|[\\]\\\]/g, '\\$&')).join('|'), ESCAPED_TEX_BRACE_COMMANDS].filter(Boolean).join('|')
   let result = out
   if (braceEscaped) {
-    const braceCmdRe = new RegExp(`(^|[^\\\\])(${braceEscaped})\\s*\\{`, 'g')
+    const braceCmdRe = new RegExp(`(^|[^\\\\\\w])(${braceEscaped})\\s*\\{`, 'g')
     result = result.replace(braceCmdRe, (_m: string, p1: string, p2: string) => `${p1}\\${p2}{`)
   }
   result = result.replace(/span\{([^}]+)\}/, 'span\\{$1\\}')
     .replace(/\\operatorname\{span\}\{((?:[^{}]|\{[^}]*\})+)\}/, '\\operatorname{span}\\{$1\\}')
+
+  // If a single backslash appears immediately before a newline (e.g. "... 8 \n5..."),
+  // it's likely intended as a LaTeX linebreak (`\\`). Double it, but avoid
+  // changing already escaped `\\` sequences.
+  // Match a single backslash not preceded by another backslash, followed by an optional CR and a LF.
+  result = result.replace(/(^|[^\\])\\\r?\n/g, '$1\\\\\n')
+
+  // If the string ends with a single backslash (no trailing newline), double it.
+  result = result.replace(/(^|[^\\])\\$/g, '$1\\\\')
   return result
 }
 export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
   // Inline rule for \(...\) and $$...$$ and $...$
   const mathInline = (state: unknown, silent: boolean) => {
     const s = state as any
+
     if (/^\*[^*]+/.test(s.src)) {
       return false
     }
@@ -228,43 +238,54 @@ export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
         if (endIdx === -1) {
           // no matching close for this opener; skip forward
           const content = src.slice(index + open.length)
-          if (isMathLike(content)) {
-            searchPos = index + open.length
-            foundAny = true
-            if (!silent) {
-              s.pending = ''
-              const toPushBefore = preMathPos ? src.slice(preMathPos, searchPos) : src.slice(0, searchPos)
-              const isStrongPrefix = countUnescapedStrong(toPushBefore) % 2 === 1
-
-              if (preMathPos)
-                pushText(src.slice(preMathPos, searchPos))
-              else
-                pushText(src.slice(0, searchPos))
-              if (isStrongPrefix) {
-                const strongToken = s.push('strong_open', '', 0)
-                strongToken.markup = src.slice(0, index + 2)
-                const token = s.push('math_inline', 'math', 0)
-                token.content = normalizeStandaloneBackslashT(content, mathOpts)
-                token.markup = open === '$$' ? '$$' : open === '\\(' ? '\\(\\)' : open === '$' ? '$' : '()'
-                token.raw = `${open}${content}${close}`
-                token.loading = true
-                strongToken.content = content
-                s.push('strong_close', '', 0)
-              }
-              else {
-                const token = s.push('math_inline', 'math', 0)
-                token.content = normalizeStandaloneBackslashT(content, mathOpts)
-                token.markup = open === '$$' ? '$$' : open === '\\(' ? '\\(\\)' : open === '$' ? '$' : '()'
-                token.raw = `${open}${content}${close}`
-                token.loading = true
-              }
-              // consume the full inline source
-              s.pos = src.length
-            }
-            searchPos = src.length
-            preMathPos = searchPos
+          if (content.includes(open)) {
+            searchPos = src.indexOf(open, index + open.length)
+            continue
           }
-          break
+          if (endIdx === -1) {
+            if (isMathLike(content)) {
+              searchPos = index + open.length
+              foundAny = true
+              if (!silent) {
+                s.pending = ''
+                const toPushBefore = preMathPos ? src.slice(preMathPos, searchPos) : src.slice(0, searchPos)
+                const isStrongPrefix = countUnescapedStrong(toPushBefore) % 2 === 1
+
+                if (preMathPos) {
+                  pushText(src.slice(preMathPos, searchPos))
+                }
+                else {
+                  let text = src.slice(0, searchPos)
+                  if (text.endsWith(open))
+                    text = text.slice(0, text.length - open.length)
+                  pushText(text)
+                }
+                if (isStrongPrefix) {
+                  const strongToken = s.push('strong_open', '', 0)
+                  strongToken.markup = src.slice(0, index + 2)
+                  const token = s.push('math_inline', 'math', 0)
+                  token.content = normalizeStandaloneBackslashT(content, mathOpts)
+                  token.markup = open === '$$' ? '$$' : open === '\\(' ? '\\(\\)' : open === '$' ? '$' : '()'
+                  token.raw = `${open}${content}${close}`
+                  token.loading = true
+                  strongToken.content = content
+                  s.push('strong_close', '', 0)
+                }
+                else {
+                  const token = s.push('math_inline', 'math', 0)
+                  token.content = normalizeStandaloneBackslashT(content, mathOpts)
+                  token.markup = open === '$$' ? '$$' : open === '\\(' ? '\\(\\)' : open === '$' ? '$' : '()'
+                  token.raw = `${open}${content}${close}`
+                  token.loading = true
+                }
+                // consume the full inline source
+                s.pos = src.length
+              }
+              searchPos = src.length
+              preMathPos = searchPos
+            }
+            break
+          }
         }
         const content = src.slice(index + open.length, endIdx)
         if (!isMathLike(content)) {
@@ -388,12 +409,6 @@ export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
         if (open.includes('[')) {
           if (lineText.replace('\\', '') === '[') {
             if (startLine + 1 < endLine) {
-              // const nextLineStart
-              //   = state.bMarks[startLine + 1] + state.tShift[startLine + 1]
-              // const nextLineText = state.src.slice(
-              //   nextLineStart,
-              //   state.eMarks[startLine + 1],
-              // )
               matched = true
               openDelim = open
               closeDelim = close
@@ -429,7 +444,6 @@ export function applyMath(md: MarkdownIt, mathOpts?: MathOptions) {
         startDelimIndex + openDelim.length,
         endDelimIndex,
       )
-
       const token: any = s.push('math_block', 'math', 0)
       token.content = normalizeStandaloneBackslashT(content)
       token.markup

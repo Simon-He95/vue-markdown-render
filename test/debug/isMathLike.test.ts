@@ -12,4 +12,5 @@ it('recognizes \"\\boldsymbol{...}\" as math-like', () => {
   expect(isMathLike('served from /vue-markdown-icon.svg')).toBe(false)
   expect(isMathLike('served from vue-markdown-icon.1')).toBe(false)
   expect(isMathLike('get_time')).toBe(false)
+  expect(isMathLike('or **matrix of coefficients**')).toBe(false)
 })

@@ -85,6 +85,14 @@ e^x = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \cdots + \frac{x^n}{n!} + \cdots
 (1+x)^m = 1 + mx + \frac{m(m-1)}{2!}x^2 + \frac{m(m-1)(m-2)}{3!}x^3 + \cdots, \quad |x| < 1
 \]
 
+- **矩阵**：
+\[
+\begin{bmatrix}
+2x_2 - 8x_3 = 8 \\
+5x_1 - 5x_3 = 10
+\end{bmatrix}
+\]
+
 - **公式**
 
 

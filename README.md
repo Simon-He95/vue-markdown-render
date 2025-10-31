@@ -61,6 +61,14 @@ These features make the library especially suited for real-time, AI-driven, and 
 - [Streaming playground](https://vue-markdown-renderer.simonhe.me/) — try large Markdown files and progressive diagrams to feel the difference.
 - [Markdown vs v-html comparison](https://vue-markdown-renderer.simonhe.me/markdown) — contrast the library's reactive rendering with a traditional static pipeline.
 
+### Interactive Test Page
+
+- Try the interactive test page for quick verification and debugging: https://vue-markdown-renderer.simonhe.me/test
+
+  This page provides a left-side editor and right-side live preview powered by the library. It also includes a "生成并复制分享链接" action that encodes your input into the URL for easy sharing, and a fallback flow to open or prefill a GitHub issue when the input is too long for URL embedding.
+
+  Use this page to reproduce rendering issues, verify math/mermaid/code block behaviour, and quickly produce a shareable link or an issue with prefilled reproduction steps.
+
 ### Intro Video
 
 This short video introduces the vue-renderer-markdown component library and highlights key features and usage patterns.

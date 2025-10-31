@@ -29,8 +29,16 @@ describe('数学公式解析测试', () => {
         ).slice(0, 50)}...`,
       )
     })
+    console.log('所有 tokens:')
+    tokens.forEach((token, i) => {
+      console.log(
+        `  ${i}: ${token.type} ${token.tag || ''} - ${(
+          token.content || ''
+        ).slice(0, 50)}...`,
+      )
+    })
 
-    console.log('\\n数学块详情:')
+    console.log('\n数学块详情:')
     mathBlocks.forEach((block, i) => {
       console.log(`  数学块 ${i + 1}:`)
       console.log(`    内容: ${block.content}`)
@@ -40,6 +48,27 @@ describe('数学公式解析测试', () => {
     // 验证是否找到了数学块
     expect(mathBlocks.length).toBeGreaterThan(0)
     expect(mathBlocks[0].content).toContain('付费转化率')
+    expect(mathBlocks[0].markup).toBe('\\[\\]')
+  })
+
+  it('应该正确解析矩阵环境的数学公式', () => {
+    const md = getMarkdown('test')
+
+    const matrixContent = `\\[\n\\begin{bmatrix}\n2x_2 - 8x_3 = 8 \\\\n+5x_1 - 5x_3 = 10\n\\end{bmatrix}\n\\]`
+
+    const tokens = md.parse(matrixContent, {})
+
+    const mathBlocks = tokens.filter(token => token.type === 'math_block')
+
+    console.log('\n=== 矩阵环境测试 ===')
+    console.log('数学块数量:', mathBlocks.length)
+    mathBlocks.forEach((block, i) => {
+      console.log(`数学块 ${i + 1}: ${block.content}`)
+    })
+
+    expect(mathBlocks.length).toBeGreaterThanOrEqual(1)
+    expect(mathBlocks[0].content).toContain('bmatrix')
+    expect(mathBlocks[0].content).toContain('2x_2')
     expect(mathBlocks[0].markup).toBe('\\[\\]')
   })
 

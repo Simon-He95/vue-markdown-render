@@ -1,10 +1,25 @@
-import { normalizeStandaloneBackslashT } from 'stream-markdown-parser'
 import { describe, expect, it } from 'vitest'
+import { normalizeStandaloneBackslashT } from '../packages/markdown-parser/src/plugins/math'
 
 describe('normalizeStandaloneBackslashT direct tests', () => {
   it('escapes a raw tab to \\t', () => {
     const out = normalizeStandaloneBackslashT('A\tB')
     expect(out).toBe('A\\tB')
+  })
+
+  it('normalizes a LaTeX math block', () => {
+    const raw = `
+\begin{bmatrix}
+2x_2 - 8x_3 = 8 \\
+5x_1 - 5x_3 = 10
+\end{bmatrix}`
+    const out = normalizeStandaloneBackslashT(raw)
+    // should preserve \begin / \end and not split 'in' inside 'begin' to '\\in'
+    expect(out).toBe(`
+\\begin{bmatrix}
+2x_2 - 8x_3 = 8 \\\\
+5x_1 - 5x_3 = 10
+\\end{bmatrix}`)
   })
 
   it('no-op for already normalized string', () => {
@@ -21,7 +36,6 @@ describe('normalizeStandaloneBackslashT direct tests', () => {
     const out = normalizeStandaloneBackslashT(`\[
 \text{付费转化率} = \left( \frac{\text{付费用户数}}{\text{月活用户数}} \right) \times 100\%
 \]`)
-    console.log({ out })
     expect(out).toBe(`\[
 \\text{付费转化率} = \\left( \\frac{\\text{付费用户数}}{\\text{月活用户数}} \\right) \\times 100\%
 \]`)

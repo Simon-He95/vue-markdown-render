@@ -61,6 +61,14 @@
 - [Streaming playground](https://vue-markdown-renderer.simonhe.me/) — 在浏览器中试用大文件、渐进式图表等特性。
 - [Markdown vs v-html comparison](https://vue-markdown-renderer.simonhe.me/markdown) — 对比本库的响应式渲染与传统静态管线。
 
+### 交互测试页面
+
+- 试用交互式测试页面以便快速验证与调试： https://vue-markdown-renderer.simonhe.me/test
+
+  此页面提供左侧编辑器与右侧实时预览（由本库驱动）。页面包含“生成并复制分享链接”功能，会将你的输入编码到 URL 中以便分享；当输入过长无法嵌入 URL 时，会提供直接打开或预填 GitHub Issue 的回退流程。
+
+  你可以使用该页面复现渲染问题，验证数学公式 / Mermaid / 代码块的渲染行为，并快速生成可共享链接或带复现信息的 issue。
+
 ### 介绍视频
 
 一段短视频介绍了 vue-renderer-markdown 的关键特性与使用方式。

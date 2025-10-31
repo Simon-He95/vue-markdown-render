@@ -59,6 +59,8 @@ export function isMathLike(s: string) {
   // If the content looks like a timestamp or date, it's not math.
   if (DATE_TIME_RE.test(stripped))
     return false
+  if (stripped.includes('**'))
+    return false
   if (stripped.length > 2000)
     return true // very long blocks likely math
 

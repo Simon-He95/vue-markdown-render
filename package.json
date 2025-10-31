@@ -103,9 +103,10 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.4",
-    "stream-markdown-parser": "^0.0.10"
+    "stream-markdown-parser": "^0.0.11"
   },
   "devDependencies": {
+    "lz-string": "^1.5.0",
     "@antfu/eslint-config": "^5.4.1",
     "@types/node": "^18.19.130",
     "@vitejs/plugin-vue": "^5.2.4",
