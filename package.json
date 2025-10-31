@@ -103,7 +103,7 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.4",
-    "stream-markdown-parser": "^0.0.11"
+    "stream-markdown-parser": "^0.0.12"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.4.1",

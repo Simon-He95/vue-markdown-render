@@ -457,7 +457,11 @@ export function parseInlineTokens(tokens: MarkdownToken[], raw?: string, pPreTok
       result.splice(index + 1)
 
     const nextToken = tokens[i + 1]
-    if (content === '`' || content === '|' || content === '$' || content === '1' || /^\*+$/.test(content) || /^\d$/.test(content)) {
+    if (pPreToken?.type === 'list_item_open' && /^\d$/.test(content)) {
+      i++
+      return
+    }
+    if (content === '`' || content === '|' || content === '$' || /^\*+$/.test(content)) {
       i++
       return
     }

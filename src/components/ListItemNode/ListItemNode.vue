@@ -54,5 +54,6 @@ ul > .list-item::marker{
 .list-item :deep(.markdown-renderer) {
   content-visibility: visible;
   contain-intrinsic-size: auto;
+  contain: none;
 }
 </style>
