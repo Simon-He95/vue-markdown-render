@@ -208,7 +208,7 @@ onMounted(() => {
 
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">预览</label>
-          <div class="prose max-w-none p-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-h-[14rem] overflow-auto">
+          <div class="max-w-none p-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-h-[14rem] overflow-auto">
             <MarkdownRender :content="input" />
           </div>
           <div class="mt-2 text-xs text-gray-500 break-words">
