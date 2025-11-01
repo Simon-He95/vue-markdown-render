@@ -41,6 +41,10 @@ describe('link parsing', () => {
     expect(texts).toContain('GitHub官网')
     expect(texts).toContain('知乎 - 有问题就会有答案')
     expect(texts).toContain('Google')
+    expect(texts).toContain('https://www.wikipedia.org')
+    expect(texts).toContain('http://example.com/path?query=test')
+    expect(texts).toContain('https://markdown-guide.readthedocs.io')
+
     // The parser may keep emphasis markup in link.text (e.g. "*斜体链接*"),
     // so accept either the raw form or verify the nested emphasis child contains the plain text.
     // The parser may keep emphasis markup in link.text or emit nested emphasis nodes.

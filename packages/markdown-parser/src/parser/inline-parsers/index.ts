@@ -18,6 +18,17 @@ import { parseSubscriptToken } from './subscript-parser'
 import { parseSuperscriptToken } from './superscript-parser'
 import { parseTextToken } from './text-parser'
 
+// Helper: detect likely URLs/hrefs (autolinks). Extracted so the
+// detection logic is easy to tweak and test.
+const AUTOLINK_PROTOCOL_RE = /^(?:https?:\/\/|mailto:|ftp:\/\/)/i
+const AUTOLINK_GENERIC_RE = /:\/\//
+
+export function isLikelyUrl(href?: string) {
+  if (!href)
+    return false
+  return AUTOLINK_PROTOCOL_RE.test(href) || AUTOLINK_GENERIC_RE.test(href)
+}
+
 // Process inline tokens (for text inside paragraphs, headings, etc.)
 export function parseInlineTokens(tokens: MarkdownToken[], raw?: string, pPreToken?: MarkdownToken): ParsedNode[] {
   if (!tokens || tokens.length === 0)
@@ -519,6 +530,30 @@ export function parseInlineTokens(tokens: MarkdownToken[], raw?: string, pPreTok
       const escText = escapeRegExp(text)
       const reg = new RegExp(`\\[${escText}\\s*\\]`)
       if (!reg.test(raw)) {
+        // If this link_open comes from an autolinkified URL (e.g. http://...)
+        // treat it as a real link node rather than plain text. Otherwise
+        // fall back to pushing plain text.
+        const hrefAttr = token.attrs?.find(([name]) => name === 'href')?.[1] ?? ''
+        // Only treat as autolink when the original raw source does not contain
+        // any square-bracket link text (i.e. it was not written as [text](...)).
+        const isAutolink = (!raw.includes('[')) && isLikelyUrl(String(hrefAttr))
+        if (isAutolink) {
+          resetCurrentTextNode()
+          const node = {
+            type: 'link',
+            href: String(hrefAttr),
+            title: null,
+            text,
+            children: [
+              { type: 'text', content: text, raw: text },
+            ],
+            loading: false,
+          } as ParsedNode
+          pushParsed(node)
+          i += 3
+          return
+        }
+
         pushText(text, text)
         i += 3
         return
